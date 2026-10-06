@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String   @unique
+  password  String
+  rol       Rol      @default(OPERARIO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Rol {
+  ADMINISTRADOR
+  COORDINADOR
+  OPERARIO
+}
+
+model Lote {
+  id          Int          @id @default(autoincrement())
+  nombre      String
+  ubicacion   String
+  area        Float?
+  descripcion String?
+  cultivo     String       @default("Aguacate")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  actividades Actividad[]
+}
+
+model Actividad {
+  id          Int      @id @default(autoincrement())
+  tipo        String
+  descripcion String?
+  fecha       DateTime
+  estado      String   @default("PENDIENTE")
+  loteId      Int
+  lote        Lote     @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
