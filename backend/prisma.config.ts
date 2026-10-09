@@ -7,7 +7,6 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    // Usamos DIRECT_URL (puerto 5432) para las migraciones
     url: env('DIRECT_URL'),
   },
 });
