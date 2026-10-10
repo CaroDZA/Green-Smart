@@ -16,6 +16,9 @@ app.get('/', (req, res) => {
 // Rutas
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/test', require('./routes/test'));
+app.use('/api/lotes', require('./routes/lotes'));
+app.use('/api/actividades', require('./routes/actividades'));
+app.use('/api/reportes', require('./routes/reportes'));
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
