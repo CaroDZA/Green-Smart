@@ -8,7 +8,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Ruta de inicio
 app.get('/', (req, res) => {
     res.json({ mensaje: 'API de Green Smart funcionando' });
 });
@@ -19,6 +18,8 @@ app.use('/api/test', require('./routes/test'));
 app.use('/api/lotes', require('./routes/lotes'));
 app.use('/api/actividades', require('./routes/actividades'));
 app.use('/api/reportes', require('./routes/reportes'));
+app.use('/api/etapas', require('./routes/etapas'));
+app.use('/api/monitoreos', require('./routes/monitoreos'));
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);

@@ -3,23 +3,75 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-}
-
-model Usuario {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  email     String   @unique
-  password  String
-  rol       Rol      @default(OPERARIO)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  provider = "postgresql"
 }
 
 enum Rol {
   ADMINISTRADOR
   COORDINADOR
   OPERARIO
+}
+
+enum EtapaCultivo {
+  VEGETATIVA
+  FLORACION
+  FRUCTIFICACION
+  MADURACION
+  REPOSO
+}
+
+enum TipoPlaga {
+  PICUDO
+  PASADOR
+  CHINCHE
+  ARANITA
+  TRIPS
+  COCHINILLA
+  BARRENADOR
+  OTRA
+}
+
+enum TipoEnfermedad {
+  MARCHITEZ
+  PUDRICION_RAIZ
+  ANTRACNOSIS
+  OTRA
+}
+
+enum EstadoCultivo {
+  BUENO
+  REGULAR
+  CRITICO
+}
+
+enum TipoActividad {
+  PLATEO
+  DESHIERBE
+  FERTILIZACION
+  RIEGO
+  PODA
+  FUMIGACION
+  COSECHA
+  MONITOREO
+  OTRA
+}
+
+enum EstadoActividad {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADA
+  CANCELADA
+}
+
+model Usuario {
+  id         Int         @id @default(autoincrement())
+  nombre     String
+  email      String      @unique
+  password   String
+  rol        Rol         @default(OPERARIO)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  monitoreos Monitoreo[]
 }
 
 model Lote {
@@ -29,19 +81,53 @@ model Lote {
   area        Float?
   descripcion String?
   cultivo     String       @default("Aguacate")
+  activo      Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   actividades Actividad[]
+  etapas      Etapa[]
+  monitoreos  Monitoreo[]
+}
+
+model Etapa {
+  id          Int          @id @default(autoincrement())
+  nombre      EtapaCultivo
+  fechaInicio DateTime
+  fechaFin    DateTime?
+  descripcion String?
+  loteId      Int
+  lote        Lote         @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Actividad {
-  id          Int      @id @default(autoincrement())
-  tipo        String
-  descripcion String?
-  fecha       DateTime
-  estado      String   @default("PENDIENTE")
-  loteId      Int
-  lote        Lote     @relation(fields: [loteId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              Int              @id @default(autoincrement())
+  tipo            TipoActividad
+  descripcion     String?
+  fechaProgramada DateTime
+  fechaEjecucion  DateTime?
+  estado          EstadoActividad  @default(PENDIENTE)
+  novedades       String?
+  costo           Float?
+  loteId          Int
+  lote            Lote             @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Monitoreo {
+  id                 Int              @id @default(autoincrement())
+  fecha              DateTime         @default(now())
+  condicionObservada String
+  estado             EstadoCultivo
+  plaga              TipoPlaga?
+  enfermedad         TipoEnfermedad?
+  observaciones      String?
+  loteId             Int
+  lote               Lote             @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  usuarioId          Int
+  usuario            Usuario          @relation(fields: [usuarioId], references: [id])
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }

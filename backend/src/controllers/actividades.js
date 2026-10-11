@@ -3,15 +3,14 @@ const prisma = require('../utils/prisma');
 // Crear una actividad
 const crearActividad = async (req, res) => {
     try {
-        const { tipo, descripcion, fecha, estado, loteId } = req.body;
+        const { tipo, descripcion, fechaProgramada, estado, loteId, costo } = req.body;
 
-        if (!tipo || !fecha || !loteId) {
+        if (!tipo || !fechaProgramada || !loteId) {
             return res.status(400).json({
-                error: 'Los campos tipo, fecha y loteId son obligatorios',
+                error: 'Los campos tipo, fechaProgramada y loteId son obligatorios',
             });
         }
 
-        // Revisar que el lote exista
         const loteExiste = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
         });
@@ -24,9 +23,10 @@ const crearActividad = async (req, res) => {
             data: {
                 tipo,
                 descripcion: descripcion || null,
-                fecha: new Date(fecha),
+                fechaProgramada: new Date(fechaProgramada),
                 estado: estado || 'PENDIENTE',
                 loteId: parseInt(loteId),
+                costo: costo ? parseFloat(costo) : null,
             },
             include: { lote: true },
         });
@@ -46,7 +46,7 @@ const listarActividades = async (req, res) => {
     try {
         const actividades = await prisma.actividad.findMany({
             include: { lote: true },
-            orderBy: { fecha: 'desc' },
+            orderBy: { fechaProgramada: 'desc' },
         });
 
         res.json({
@@ -59,7 +59,7 @@ const listarActividades = async (req, res) => {
     }
 };
 
-// Listar actividades de un lote específico
+// Listar por lote
 const listarPorLote = async (req, res) => {
     try {
         const { loteId } = req.params;
@@ -74,7 +74,7 @@ const listarPorLote = async (req, res) => {
 
         const actividades = await prisma.actividad.findMany({
             where: { loteId: parseInt(loteId) },
-            orderBy: { fecha: 'desc' },
+            orderBy: { fechaProgramada: 'desc' },
         });
 
         res.json({
@@ -88,7 +88,7 @@ const listarPorLote = async (req, res) => {
     }
 };
 
-// Ver una actividad por su id
+// Ver una actividad
 const verActividad = async (req, res) => {
     try {
         const { id } = req.params;
@@ -113,7 +113,7 @@ const verActividad = async (req, res) => {
 const actualizarActividad = async (req, res) => {
     try {
         const { id } = req.params;
-        const { tipo, descripcion, fecha, estado } = req.body;
+        const { tipo, descripcion, fechaProgramada, fechaEjecucion, estado, novedades, costo } = req.body;
 
         const actividadExiste = await prisma.actividad.findUnique({
             where: { id: parseInt(id) },
@@ -128,8 +128,11 @@ const actualizarActividad = async (req, res) => {
             data: {
                 tipo: tipo || actividadExiste.tipo,
                 descripcion: descripcion !== undefined ? descripcion : actividadExiste.descripcion,
-                fecha: fecha ? new Date(fecha) : actividadExiste.fecha,
+                fechaProgramada: fechaProgramada ? new Date(fechaProgramada) : actividadExiste.fechaProgramada,
+                fechaEjecucion: fechaEjecucion !== undefined ? (fechaEjecucion ? new Date(fechaEjecucion) : null) : actividadExiste.fechaEjecucion,
                 estado: estado || actividadExiste.estado,
+                novedades: novedades !== undefined ? novedades : actividadExiste.novedades,
+                costo: costo !== undefined ? parseFloat(costo) : actividadExiste.costo,
             },
             include: { lote: true },
         });
