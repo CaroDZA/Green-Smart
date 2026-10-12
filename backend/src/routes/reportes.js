@@ -6,11 +6,13 @@ const {
     resumenGeneral,
     reportePorFechas,
 } = require('../controllers/reportes');
+const { generarPDFLote } = require('../controllers/pdf');
 
 router.use(verificarLogin);
 
 router.get('/resumen', resumenGeneral);
 router.get('/historial/:loteId', historialLote);
 router.get('/fechas', reportePorFechas);
+router.get('/pdf/:loteId', generarPDFLote);
 
 module.exports = router;
