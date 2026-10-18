@@ -1,17 +1,9 @@
 const prisma = require('../utils/prisma');
+const { esIdValido, esFechaValida, ESTADOS_CULTIVO, PLAGAS, ENFERMEDADES } = require('../utils/validar');
 
-// Crear un monitoreo
 const crearMonitoreo = async (req, res) => {
     try {
-        const {
-            fecha,
-            condicionObservada,
-            estado,
-            plaga,
-            enfermedad,
-            observaciones,
-            loteId,
-        } = req.body;
+        const { fecha, condicionObservada, estado, plaga, enfermedad, observaciones, loteId } = req.body;
 
         if (!condicionObservada || !estado || !loteId) {
             return res.status(400).json({
@@ -19,12 +11,31 @@ const crearMonitoreo = async (req, res) => {
             });
         }
 
+        if (!esIdValido(loteId)) {
+            return res.status(400).json({ error: 'El loteId no es valido' });
+        }
+        if (!ESTADOS_CULTIVO.includes(estado)) {
+            return res.status(400).json({ error: 'El estado no es valido (BUENO, REGULAR o CRITICO)' });
+        }
+        if (plaga && !PLAGAS.includes(plaga)) {
+            return res.status(400).json({ error: 'La plaga no es valida' });
+        }
+        if (enfermedad && !ENFERMEDADES.includes(enfermedad)) {
+            return res.status(400).json({ error: 'La enfermedad no es valida' });
+        }
+        if (fecha && !esFechaValida(fecha)) {
+            return res.status(400).json({ error: 'La fecha no es valida' });
+        }
+        if (fecha && new Date(fecha) > new Date()) {
+            return res.status(400).json({ error: 'La fecha del monitoreo no puede ser futura' });
+        }
+
         const loteExiste = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
         });
 
-        if (!loteExiste) {
-            return res.status(404).json({ error: 'El lote no existe' });
+        if (!loteExiste || !loteExiste.activo) {
+            return res.status(404).json({ error: 'El lote no existe o esta inactivo' });
         }
 
         const nuevoMonitoreo = await prisma.monitoreo.create({
@@ -44,17 +55,13 @@ const crearMonitoreo = async (req, res) => {
             },
         });
 
-        res.status(201).json({
-            mensaje: 'Monitoreo registrado',
-            monitoreo: nuevoMonitoreo,
-        });
+        res.status(201).json({ mensaje: 'Monitoreo registrado', monitoreo: nuevoMonitoreo });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 };
 
-// Listar todos los monitoreos
 const listarMonitoreos = async (req, res) => {
     try {
         const monitoreos = await prisma.monitoreo.findMany({
@@ -64,7 +71,6 @@ const listarMonitoreos = async (req, res) => {
             },
             orderBy: { fecha: 'desc' },
         });
-
         res.json({ total: monitoreos.length, monitoreos });
     } catch (error) {
         console.log(error);
@@ -72,11 +78,14 @@ const listarMonitoreos = async (req, res) => {
     }
 };
 
-// Listar monitoreos de un lote
 const listarPorLote = async (req, res) => {
-    try {
-        const { loteId } = req.params;
+    const { loteId } = req.params;
 
+    if (!esIdValido(loteId)) {
+        return res.status(400).json({ error: 'El loteId no es valido' });
+    }
+
+    try {
         const lote = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
         });
@@ -98,11 +107,14 @@ const listarPorLote = async (req, res) => {
     }
 };
 
-// Ver un monitoreo
 const verMonitoreo = async (req, res) => {
-    try {
-        const { id } = req.params;
+    const { id } = req.params;
 
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
         const monitoreo = await prisma.monitoreo.findUnique({
             where: { id: parseInt(id) },
             include: {
@@ -122,11 +134,65 @@ const verMonitoreo = async (req, res) => {
     }
 };
 
-// Eliminar un monitoreo
-const eliminarMonitoreo = async (req, res) => {
-    try {
-        const { id } = req.params;
+const actualizarMonitoreo = async (req, res) => {
+    const { id } = req.params;
 
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
+        const { fecha, condicionObservada, estado, plaga, enfermedad, observaciones } = req.body;
+
+        const existe = await prisma.monitoreo.findUnique({ where: { id: parseInt(id) } });
+        if (!existe) {
+            return res.status(404).json({ error: 'Monitoreo no encontrado' });
+        }
+
+        if (estado && !ESTADOS_CULTIVO.includes(estado)) {
+            return res.status(400).json({ error: 'El estado no es valido' });
+        }
+        if (plaga && !PLAGAS.includes(plaga)) {
+            return res.status(400).json({ error: 'La plaga no es valida' });
+        }
+        if (enfermedad && !ENFERMEDADES.includes(enfermedad)) {
+            return res.status(400).json({ error: 'La enfermedad no es valida' });
+        }
+        if (fecha && !esFechaValida(fecha)) {
+            return res.status(400).json({ error: 'La fecha no es valida' });
+        }
+        if (fecha && new Date(fecha) > new Date()) {
+            return res.status(400).json({ error: 'La fecha del monitoreo no puede ser futura' });
+        }
+
+        const monitoreo = await prisma.monitoreo.update({
+            where: { id: parseInt(id) },
+            data: {
+                fecha: fecha ? new Date(fecha) : existe.fecha,
+                condicionObservada: condicionObservada || existe.condicionObservada,
+                estado: estado || existe.estado,
+                plaga: plaga !== undefined ? (plaga || null) : existe.plaga,
+                enfermedad: enfermedad !== undefined ? (enfermedad || null) : existe.enfermedad,
+                observaciones: observaciones !== undefined ? observaciones : existe.observaciones,
+            },
+            include: { usuario: { select: { id: true, nombre: true } } },
+        });
+
+        res.json({ mensaje: 'Monitoreo actualizado', monitoreo });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+};
+
+const eliminarMonitoreo = async (req, res) => {
+    const { id } = req.params;
+
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
         const monitoreoExiste = await prisma.monitoreo.findUnique({
             where: { id: parseInt(id) },
         });
@@ -135,10 +201,7 @@ const eliminarMonitoreo = async (req, res) => {
             return res.status(404).json({ error: 'Monitoreo no encontrado' });
         }
 
-        await prisma.monitoreo.delete({
-            where: { id: parseInt(id) },
-        });
-
+        await prisma.monitoreo.delete({ where: { id: parseInt(id) } });
         res.json({ mensaje: 'Monitoreo eliminado' });
     } catch (error) {
         console.log(error);
@@ -146,7 +209,6 @@ const eliminarMonitoreo = async (req, res) => {
     }
 };
 
-// Panel de estado: último monitoreo de cada lote activo
 const estadoPorLote = async (req, res) => {
     try {
         const lotes = await prisma.lote.findMany({
@@ -182,6 +244,7 @@ module.exports = {
     listarMonitoreos,
     listarPorLote,
     verMonitoreo,
+    actualizarMonitoreo,
     eliminarMonitoreo,
     estadoPorLote,
 };

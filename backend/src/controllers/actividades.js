@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { esIdValido, esFechaValida, esNumeroValido, TIPOS_ACTIVIDAD, ESTADOS_ACTIVIDAD } = require('../utils/validar');
 
 // Crear una actividad
 const crearActividad = async (req, res) => {
@@ -11,11 +12,29 @@ const crearActividad = async (req, res) => {
             });
         }
 
+        // VALIDACIONES
+        if (!esIdValido(loteId)) {
+            return res.status(400).json({ error: 'El loteId no es valido' });
+        }
+        if (!TIPOS_ACTIVIDAD.includes(tipo)) {
+            return res.status(400).json({ error: 'El tipo de actividad no es valido' });
+        }
+        if (!esFechaValida(fechaProgramada)) {
+            return res.status(400).json({ error: 'La fechaProgramada no es valida' });
+        }
+        if (estado && !ESTADOS_ACTIVIDAD.includes(estado)) {
+            return res.status(400).json({ error: 'El estado no es valido' });
+        }
+        if (costo && !esNumeroValido(costo)) {
+            return res.status(400).json({ error: 'El costo no es valido' });
+        }
+
         const loteExiste = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
         });
 
-        if (!loteExiste) {
+        // Verificar que el lote exista y esté activo
+        if (!loteExiste || !loteExiste.activo) {
             return res.status(404).json({ error: 'El lote no existe' });
         }
 
@@ -49,10 +68,7 @@ const listarActividades = async (req, res) => {
             orderBy: { fechaProgramada: 'desc' },
         });
 
-        res.json({
-            total: actividades.length,
-            actividades,
-        });
+        res.json({ total: actividades.length, actividades });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
@@ -61,9 +77,13 @@ const listarActividades = async (req, res) => {
 
 // Listar por lote
 const listarPorLote = async (req, res) => {
-    try {
-        const { loteId } = req.params;
+    const { loteId } = req.params;
 
+    if (!esIdValido(loteId)) {
+        return res.status(400).json({ error: 'El loteId no es valido' });
+    }
+
+    try {
         const loteExiste = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
         });
@@ -77,11 +97,7 @@ const listarPorLote = async (req, res) => {
             orderBy: { fechaProgramada: 'desc' },
         });
 
-        res.json({
-            lote: loteExiste.nombre,
-            total: actividades.length,
-            actividades,
-        });
+        res.json({ lote: loteExiste.nombre, total: actividades.length, actividades });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
@@ -90,9 +106,13 @@ const listarPorLote = async (req, res) => {
 
 // Ver una actividad
 const verActividad = async (req, res) => {
-    try {
-        const { id } = req.params;
+    const { id } = req.params;
 
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
         const actividad = await prisma.actividad.findUnique({
             where: { id: parseInt(id) },
             include: { lote: true },
@@ -111,8 +131,13 @@ const verActividad = async (req, res) => {
 
 // Actualizar una actividad
 const actualizarActividad = async (req, res) => {
+    const { id } = req.params;
+
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
     try {
-        const { id } = req.params;
         const { tipo, descripcion, fechaProgramada, fechaEjecucion, estado, novedades, costo } = req.body;
 
         const actividadExiste = await prisma.actividad.findUnique({
@@ -123,24 +148,47 @@ const actualizarActividad = async (req, res) => {
             return res.status(404).json({ error: 'Actividad no encontrada' });
         }
 
+        // VALIDACIONES
+        if (tipo && !TIPOS_ACTIVIDAD.includes(tipo)) {
+            return res.status(400).json({ error: 'El tipo no es valido' });
+        }
+        if (estado && !ESTADOS_ACTIVIDAD.includes(estado)) {
+            return res.status(400).json({ error: 'El estado no es valido' });
+        }
+        if (fechaProgramada && !esFechaValida(fechaProgramada)) {
+            return res.status(400).json({ error: 'La fechaProgramada no es valida' });
+        }
+        if (fechaEjecucion && !esFechaValida(fechaEjecucion)) {
+            return res.status(400).json({ error: 'La fechaEjecucion no es valida' });
+        }
+        if (costo !== undefined && costo !== null && !esNumeroValido(costo)) {
+            return res.status(400).json({ error: 'El costo no es valido' });
+        }
+
+        // Auto-completar fecha si el estado pasa a COMPLETADA
+        let fechaFinal = fechaEjecucion !== undefined
+            ? (fechaEjecucion ? new Date(fechaEjecucion) : null)
+            : actividadExiste.fechaEjecucion;
+
+        if (estado === 'COMPLETADA' && !fechaFinal) {
+            fechaFinal = new Date();
+        }
+
         const actividadActualizada = await prisma.actividad.update({
             where: { id: parseInt(id) },
             data: {
                 tipo: tipo || actividadExiste.tipo,
                 descripcion: descripcion !== undefined ? descripcion : actividadExiste.descripcion,
                 fechaProgramada: fechaProgramada ? new Date(fechaProgramada) : actividadExiste.fechaProgramada,
-                fechaEjecucion: fechaEjecucion !== undefined ? (fechaEjecucion ? new Date(fechaEjecucion) : null) : actividadExiste.fechaEjecucion,
+                fechaEjecucion: fechaFinal,
                 estado: estado || actividadExiste.estado,
                 novedades: novedades !== undefined ? novedades : actividadExiste.novedades,
-                costo: costo !== undefined ? parseFloat(costo) : actividadExiste.costo,
+                costo: costo !== undefined ? (costo === null ? null : parseFloat(costo)) : actividadExiste.costo,
             },
             include: { lote: true },
         });
 
-        res.json({
-            mensaje: 'Actividad actualizada',
-            actividad: actividadActualizada,
-        });
+        res.json({ mensaje: 'Actividad actualizada', actividad: actividadActualizada });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
@@ -149,9 +197,13 @@ const actualizarActividad = async (req, res) => {
 
 // Eliminar una actividad
 const eliminarActividad = async (req, res) => {
-    try {
-        const { id } = req.params;
+    const { id } = req.params;
 
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
         const actividadExiste = await prisma.actividad.findUnique({
             where: { id: parseInt(id) },
         });
@@ -171,6 +223,42 @@ const eliminarActividad = async (req, res) => {
     }
 };
 
+// Función Completar actividad (Para el Operario)
+const completarActividad = async (req, res) => {
+    const { id } = req.params;
+    const { novedades } = req.body;
+
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
+        const actividad = await prisma.actividad.findUnique({ where: { id: parseInt(id) } });
+
+        if (!actividad) {
+            return res.status(404).json({ error: 'Actividad no encontrada' });
+        }
+        if (actividad.estado === 'COMPLETADA' || actividad.estado === 'CANCELADA') {
+            return res.status(400).json({ error: 'Esta actividad ya esta cerrada' });
+        }
+
+        const actualizada = await prisma.actividad.update({
+            where: { id: parseInt(id) },
+            data: {
+                estado: 'COMPLETADA',
+                fechaEjecucion: new Date(),
+                novedades: novedades !== undefined ? novedades : actividad.novedades,
+            },
+            include: { lote: true },
+        });
+
+        res.json({ mensaje: 'Actividad completada', actividad: actualizada });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+};
+
 module.exports = {
     crearActividad,
     listarActividades,
@@ -178,4 +266,5 @@ module.exports = {
     verActividad,
     actualizarActividad,
     eliminarActividad,
+    completarActividad, // <-- No olvides exportarla
 };

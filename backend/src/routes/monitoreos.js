@@ -8,6 +8,7 @@ const {
     verMonitoreo,
     eliminarMonitoreo,
     estadoPorLote,
+    actualizarMonitoreo,
 } = require('../controllers/monitoreos');
 
 router.use(verificarLogin);
@@ -20,6 +21,7 @@ router.get('/lote/:loteId', listarPorLote);
 router.get('/:id', verMonitoreo);
 
 router.post('/', verificarRol('ADMINISTRADOR', 'COORDINADOR'), crearMonitoreo);
+router.put('/:id', verificarRol('ADMINISTRADOR', 'COORDINADOR'), actualizarMonitoreo);
 router.delete('/:id', verificarRol('ADMINISTRADOR'), eliminarMonitoreo);
 
 module.exports = router;

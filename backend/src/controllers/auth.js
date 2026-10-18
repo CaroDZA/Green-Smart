@@ -128,6 +128,10 @@ const cambiarRol = async (req, res) => {
             return res.status(400).json({ error: 'Rol no válido' });
         }
 
+        if (parseInt(id) === req.usuario.id) {
+            return res.status(400).json({ error: 'No puedes cambiar tu propio rol' });
+        }
+
         const usuario = await prisma.usuario.update({
             where: { id: parseInt(id) },
             data: { rol },

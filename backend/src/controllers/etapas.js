@@ -1,6 +1,6 @@
 const prisma = require('../utils/prisma');
+const { esIdValido, esFechaValida, ETAPAS } = require('../utils/validar');
 
-// Crear una etapa
 const crearEtapa = async (req, res) => {
     try {
         const { nombre, fechaInicio, fechaFin, descripcion, loteId } = req.body;
@@ -11,12 +11,28 @@ const crearEtapa = async (req, res) => {
             });
         }
 
+        if (!esIdValido(loteId)) {
+            return res.status(400).json({ error: 'El loteId no es valido' });
+        }
+        if (!ETAPAS.includes(nombre)) {
+            return res.status(400).json({ error: 'La etapa no es valida' });
+        }
+        if (!esFechaValida(fechaInicio)) {
+            return res.status(400).json({ error: 'La fechaInicio no es valida' });
+        }
+        if (fechaFin && !esFechaValida(fechaFin)) {
+            return res.status(400).json({ error: 'La fechaFin no es valida' });
+        }
+        if (fechaFin && new Date(fechaFin) < new Date(fechaInicio)) {
+            return res.status(400).json({ error: 'La fecha de fin no puede ser anterior a la de inicio' });
+        }
+
         const loteExiste = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
         });
 
-        if (!loteExiste) {
-            return res.status(404).json({ error: 'El lote no existe' });
+        if (!loteExiste || !loteExiste.activo) {
+            return res.status(404).json({ error: 'El lote no existe o esta inactivo' });
         }
 
         const nuevaEtapa = await prisma.etapa.create({
@@ -30,24 +46,19 @@ const crearEtapa = async (req, res) => {
             include: { lote: true },
         });
 
-        res.status(201).json({
-            mensaje: 'Etapa creada',
-            etapa: nuevaEtapa,
-        });
+        res.status(201).json({ mensaje: 'Etapa creada', etapa: nuevaEtapa });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 };
 
-// Listar todas las etapas
 const listarEtapas = async (req, res) => {
     try {
         const etapas = await prisma.etapa.findMany({
             include: { lote: true },
             orderBy: { fechaInicio: 'desc' },
         });
-
         res.json({ total: etapas.length, etapas });
     } catch (error) {
         console.log(error);
@@ -55,11 +66,14 @@ const listarEtapas = async (req, res) => {
     }
 };
 
-// Listar etapas de un lote
 const listarPorLote = async (req, res) => {
-    try {
-        const { loteId } = req.params;
+    const { loteId } = req.params;
 
+    if (!esIdValido(loteId)) {
+        return res.status(400).json({ error: 'El loteId no es valido' });
+    }
+
+    try {
         const lote = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
         });
@@ -80,11 +94,14 @@ const listarPorLote = async (req, res) => {
     }
 };
 
-// Ver una etapa
 const verEtapa = async (req, res) => {
-    try {
-        const { id } = req.params;
+    const { id } = req.params;
 
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
         const etapa = await prisma.etapa.findUnique({
             where: { id: parseInt(id) },
             include: { lote: true },
@@ -101,10 +118,14 @@ const verEtapa = async (req, res) => {
     }
 };
 
-// Actualizar una etapa
 const actualizarEtapa = async (req, res) => {
+    const { id } = req.params;
+
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
     try {
-        const { id } = req.params;
         const { nombre, fechaInicio, fechaFin, descripcion } = req.body;
 
         const etapaExiste = await prisma.etapa.findUnique({
@@ -115,12 +136,31 @@ const actualizarEtapa = async (req, res) => {
             return res.status(404).json({ error: 'Etapa no encontrada' });
         }
 
+        if (nombre && !ETAPAS.includes(nombre)) {
+            return res.status(400).json({ error: 'La etapa no es valida' });
+        }
+        if (fechaInicio && !esFechaValida(fechaInicio)) {
+            return res.status(400).json({ error: 'La fechaInicio no es valida' });
+        }
+        if (fechaFin && !esFechaValida(fechaFin)) {
+            return res.status(400).json({ error: 'La fechaFin no es valida' });
+        }
+
+        const inicioFinal = fechaInicio ? new Date(fechaInicio) : etapaExiste.fechaInicio;
+        const finFinal = fechaFin !== undefined
+            ? (fechaFin ? new Date(fechaFin) : null)
+            : etapaExiste.fechaFin;
+
+        if (finFinal && finFinal < inicioFinal) {
+            return res.status(400).json({ error: 'La fecha de fin no puede ser anterior a la de inicio' });
+        }
+
         const etapaActualizada = await prisma.etapa.update({
             where: { id: parseInt(id) },
             data: {
                 nombre: nombre || etapaExiste.nombre,
-                fechaInicio: fechaInicio ? new Date(fechaInicio) : etapaExiste.fechaInicio,
-                fechaFin: fechaFin !== undefined ? (fechaFin ? new Date(fechaFin) : null) : etapaExiste.fechaFin,
+                fechaInicio: inicioFinal,
+                fechaFin: finFinal,
                 descripcion: descripcion !== undefined ? descripcion : etapaExiste.descripcion,
             },
             include: { lote: true },
@@ -133,11 +173,14 @@ const actualizarEtapa = async (req, res) => {
     }
 };
 
-// Eliminar una etapa
 const eliminarEtapa = async (req, res) => {
-    try {
-        const { id } = req.params;
+    const { id } = req.params;
 
+    if (!esIdValido(id)) {
+        return res.status(400).json({ error: 'El id no es valido' });
+    }
+
+    try {
         const etapaExiste = await prisma.etapa.findUnique({
             where: { id: parseInt(id) },
         });
@@ -146,10 +189,7 @@ const eliminarEtapa = async (req, res) => {
             return res.status(404).json({ error: 'Etapa no encontrada' });
         }
 
-        await prisma.etapa.delete({
-            where: { id: parseInt(id) },
-        });
-
+        await prisma.etapa.delete({ where: { id: parseInt(id) } });
         res.json({ mensaje: 'Etapa eliminada' });
     } catch (error) {
         console.log(error);
@@ -164,4 +204,4 @@ module.exports = {
     verEtapa,
     actualizarEtapa,
     eliminarEtapa,
-}; 
+};

@@ -8,10 +8,14 @@ const {
     verActividad,
     actualizarActividad,
     eliminarActividad,
+    completarActividad,
 } = require('../controllers/actividades');
 
 // Todas las rutas necesitan estar logueado
 router.use(verificarLogin);
+
+// Los tres roles pueden marcar una actividad como completada
+router.patch('/:id/completar', completarActividad);
 
 // Cualquier usuario logueado puede ver
 router.get('/', listarActividades);
