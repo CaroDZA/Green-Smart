@@ -10,10 +10,12 @@ const limiteLogin = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
     message: { error: 'Demasiados intentos, intenta de nuevo en 15 minutos' },
+    skipSuccessfulRequests: true,
 });
 
+
+router.post('/register', verificarLogin, verificarRol('ADMINISTRADOR'), registrar);
 // Rutas publicas
-router.post('/register', registrar);
 router.post('/login', limiteLogin, login);
 
 // Rutas protegidas (solo Administrador)
