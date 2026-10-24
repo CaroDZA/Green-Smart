@@ -1,6 +1,22 @@
 const prisma = require('../utils/prisma');
 const { esIdValido, esFechaValida, esNumeroValido, TIPOS_ACTIVIDAD, ESTADOS_ACTIVIDAD } = require('../utils/validar');
 
+// Revisa que el usuario al que se asigna la tarea exista.
+// Devuelve un texto con el error, o null si todo esta bien.
+const validarAsignado = async (asignadoA) => {
+    if (asignadoA === undefined || asignadoA === null || asignadoA === '') {
+        return null;
+    }
+    if (!esIdValido(asignadoA)) {
+        return 'El usuario asignado no es valido';
+    }
+    const usuario = await prisma.usuario.findUnique({ where: { id: parseInt(asignadoA) } });
+    if (!usuario) {
+        return 'El usuario asignado no existe';
+    }
+    return null;
+};
+
 // Crear una actividad
 const crearActividad = async (req, res) => {
     try {
@@ -36,6 +52,11 @@ const crearActividad = async (req, res) => {
         // Verificar que el lote exista y esté activo
         if (!loteExiste || !loteExiste.activo) {
             return res.status(404).json({ error: 'El lote no existe' });
+        }
+
+        const errorAsignado = await validarAsignado(asignadoA);
+        if (errorAsignado) {
+            return res.status(400).json({ error: errorAsignado });
         }
 
         const nuevaActividad = await prisma.actividad.create({
@@ -107,8 +128,18 @@ const listarPorLote = async (req, res) => {
             return res.status(404).json({ error: 'El lote no existe' });
         }
 
+        if (!loteExiste.activo) {
+            return res.status(404).json({ error: 'El lote no existe o esta inactivo' });
+        }
+
+        // El operario solo ve sus tareas asignadas
+        const filtro = { loteId: parseInt(loteId) };
+        if (req.usuario.rol === 'OPERARIO') {
+            filtro.asignadoAId = req.usuario.id;
+        }
+
         const actividades = await prisma.actividad.findMany({
-            where: { loteId: parseInt(loteId) },
+            where: filtro,
             orderBy: { fechaProgramada: 'desc' },
         });
 
@@ -135,6 +166,11 @@ const verActividad = async (req, res) => {
 
         if (!actividad) {
             return res.status(404).json({ error: 'Actividad no encontrada' });
+        }
+
+        // El operario solo puede ver sus tareas asignadas
+        if (req.usuario.rol === 'OPERARIO' && actividad.asignadoAId !== req.usuario.id) {
+            return res.status(403).json({ error: 'Esta tarea no esta asignada a ti' });
         }
 
         res.json({ actividad });
@@ -183,6 +219,11 @@ const actualizarActividad = async (req, res) => {
         }
         if (costo !== undefined && costo !== null && !esNumeroValido(costo)) {
             return res.status(400).json({ error: 'El costo no es valido' });
+        }
+
+        const errorAsignado = await validarAsignado(asignadoA);
+        if (errorAsignado) {
+            return res.status(400).json({ error: errorAsignado });
         }
 
         // Auto-completar fecha si el estado pasa a COMPLETADA
@@ -259,6 +300,10 @@ const completarActividad = async (req, res) => {
         if (!actividad) {
             return res.status(404).json({ error: 'Actividad no encontrada' });
         }
+        // El operario solo puede completar sus propias tareas
+        if (req.usuario.rol === 'OPERARIO' && actividad.asignadoAId !== req.usuario.id) {
+            return res.status(403).json({ error: 'Esta tarea no esta asignada a ti' });
+        }
         if (actividad.estado === 'COMPLETADA' || actividad.estado === 'CANCELADA') {
             return res.status(400).json({ error: 'Esta actividad ya esta cerrada' });
         }
@@ -287,5 +332,5 @@ module.exports = {
     verActividad,
     actualizarActividad,
     eliminarActividad,
-    completarActividad, // <-- No olvides exportarla
+    completarActividad,
 };

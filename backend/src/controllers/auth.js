@@ -118,42 +118,34 @@ const listarUsuarios = async (req, res) => {
     }
 };
 
-// Restablecer contraseña validando el correo
+// Restablecer la contraseña de un usuario (solo Admin)
 const restablecerPassword = async (req, res) => {
     try {
-        const { email, nuevaPassword } = req.body;
+        const { id } = req.params;
+        const { nuevaPassword } = req.body;
 
-        // Validar que vengan los dos campos
-        if (!email || !nuevaPassword) {
-            return res.status(400).json({ error: 'El email y la nueva contraseña son obligatorios' });
+        if (!esIdValido(id)) {
+            return res.status(400).json({ error: 'El id no es valido' });
         }
 
-        if (typeof nuevaPassword !== 'string' || nuevaPassword.length < 6) {
+        if (!nuevaPassword || typeof nuevaPassword !== 'string' || nuevaPassword.length < 6) {
             return res.status(400).json({ error: 'La contraseña debe tener minimo 6 caracteres' });
         }
 
-        // Normalizar y buscar el usuario
-        const emailLimpio = email.trim().toLowerCase();
-        const usuario = await prisma.usuario.findUnique({ where: { email: emailLimpio } });
-
-        // Validación clave: El correo debe existir
+        const usuario = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
         if (!usuario) {
-            return res.status(404).json({ error: 'No existe un usuario registrado con ese correo' });
+            return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
-        // Encriptar la nueva contraseña
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(nuevaPassword, salt);
 
-        // Actualizar en la base de datos
         await prisma.usuario.update({
             where: { id: usuario.id },
             data: { password: hash },
         });
 
-        res.json({
-            mensaje: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesion.'
-        });
+        res.json({ mensaje: 'Contraseña de ' + usuario.nombre + ' actualizada exitosamente' });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });

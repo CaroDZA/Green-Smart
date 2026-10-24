@@ -15,19 +15,21 @@ const {
 const { verificarLogin, verificarRol } = require('../middlewares/auth');
 
 // Configuracion del limite de intentos para el login
+// skipSuccessfulRequests: los logins correctos no cuentan contra el limite
 const limiteLogin = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
+    skipSuccessfulRequests: true,
     message: { error: 'Demasiados intentos, intenta de nuevo en 15 minutos' },
 });
 
-// Rutas públicas
-router.post('/register', registrar);
+// Ruta publica
 router.post('/login', limiteLogin, login);
-router.post('/recuperar', restablecerPassword);
 
 // Rutas protegidas (Solo admin)
+router.post('/register', verificarLogin, verificarRol('ADMINISTRADOR'), registrar);
 router.get('/usuarios', verificarLogin, verificarRol('ADMINISTRADOR'), listarUsuarios);
 router.put('/usuarios/:id/rol', verificarLogin, verificarRol('ADMINISTRADOR'), cambiarRol);
+router.put('/usuarios/:id/password', verificarLogin, verificarRol('ADMINISTRADOR'), restablecerPassword);
 
 module.exports = router;
