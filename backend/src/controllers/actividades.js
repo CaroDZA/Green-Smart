@@ -4,7 +4,7 @@ const { esIdValido, esFechaValida, esNumeroValido, TIPOS_ACTIVIDAD, ESTADOS_ACTI
 // Crear una actividad
 const crearActividad = async (req, res) => {
     try {
-        const { tipo, descripcion, fechaProgramada, estado, loteId, costo } = req.body;
+        const { tipo, descripcion, fechaProgramada, estado, loteId, costo, asignadoA } = req.body;
 
         if (!tipo || !fechaProgramada || !loteId) {
             return res.status(400).json({
@@ -46,26 +46,40 @@ const crearActividad = async (req, res) => {
                 estado: estado || 'PENDIENTE',
                 loteId: parseInt(loteId),
                 costo: costo ? parseFloat(costo) : null,
+                creadoPorId: req.usuario.id, // <-- Guarda quién la creó
+                asignadoAId: asignadoA ? parseInt(asignadoA) : null, // <-- A quién se asigna
             },
-            include: { lote: true },
+            include: {
+                lote: true,
+                asignadoA: { select: { id: true, nombre: true, rol: true } },
+                creadoPor: { select: { id: true, nombre: true } }
+            },
         });
 
-        res.status(201).json({
-            mensaje: 'Actividad creada',
-            actividad: nuevaActividad,
-        });
+        res.status(201).json({ mensaje: 'Actividad creada', actividad: nuevaActividad });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 };
-
 // Listar todas las actividades
 const listarActividades = async (req, res) => {
     try {
+        // Filtro base: solo de lotes activos
+        let filtro = { lote: { activo: true } };
+
+        // Si es operario, SOLO ve sus tareas asignadas
+        if (req.usuario.rol === 'OPERARIO') {
+            filtro.asignadoAId = req.usuario.id;
+        }
+
         const actividades = await prisma.actividad.findMany({
-            where: { lote: { activo: true } },
-            include: { lote: true },
+            where: filtro,
+            include: {
+                lote: true,
+                asignadoA: { select: { id: true, nombre: true, rol: true } },
+                creadoPor: { select: { id: true, nombre: true } }
+            },
             orderBy: { fechaProgramada: 'desc' },
         });
 
@@ -139,14 +153,19 @@ const actualizarActividad = async (req, res) => {
     }
 
     try {
-        const { tipo, descripcion, fechaProgramada, fechaEjecucion, estado, novedades, costo } = req.body;
+        const { tipo, descripcion, fechaProgramada, fechaEjecucion, estado, novedades, costo, asignadoA } = req.body;
 
-        const actividadExiste = await prisma.actividad.findUnique({
-            where: { id: parseInt(id) },
-        });
+        const actividadExiste = await prisma.actividad.findUnique({ where: { id: parseInt(id) } });
 
         if (!actividadExiste) {
             return res.status(404).json({ error: 'Actividad no encontrada' });
+        }
+
+        // No editar tareas completadas
+        if (actividadExiste.estado === 'COMPLETADA') {
+            return res.status(400).json({
+                error: 'La actividad ya esta completada. Cree una nueva tarea para modificaciones.'
+            });
         }
 
         // VALIDACIONES
@@ -185,8 +204,9 @@ const actualizarActividad = async (req, res) => {
                 estado: estado || actividadExiste.estado,
                 novedades: novedades !== undefined ? novedades : actividadExiste.novedades,
                 costo: costo !== undefined ? (costo === null ? null : parseFloat(costo)) : actividadExiste.costo,
+                asignadoAId: asignadoA !== undefined ? (asignadoA ? parseInt(asignadoA) : null) : actividadExiste.asignadoAId,
             },
-            include: { lote: true },
+            include: { lote: true, asignadoA: { select: { nombre: true } } },
         });
 
         res.json({ mensaje: 'Actividad actualizada', actividad: actividadActualizada });

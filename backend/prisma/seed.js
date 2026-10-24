@@ -11,12 +11,14 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
     if (process.env.NODE_ENV === 'production' || process.argv[2] !== '--confirmar') {
-        console.log('Este seed BORRA todos los datos. Usa: npm run seed -- --confirmar');
+        console.log('Este seed BORRA todos los datos de la base.');
+        console.log('Si estas seguro ejecuta: npm run seed -- --confirmar');
         return;
     }
 
     console.log('Iniciando seed de Green Smart...');
 
+    // Limpiar datos existentes
     console.log('Limpiando datos anteriores...');
     await prisma.monitoreo.deleteMany();
     await prisma.actividad.deleteMany();
@@ -24,6 +26,7 @@ async function main() {
     await prisma.lote.deleteMany();
     await prisma.usuario.deleteMany();
 
+    // Crear usuarios
     console.log('Creando usuarios...');
     const clave = process.env.SEED_PASSWORD || '123456';
     const passwordEncriptada = await bcrypt.hash(clave, 10);
@@ -46,7 +49,7 @@ async function main() {
         },
     });
 
-    await prisma.usuario.create({
+    const operario = await prisma.usuario.create({
         data: {
             nombre: 'Lenis Almanza',
             email: 'operario@greensmart.com',
@@ -57,8 +60,9 @@ async function main() {
 
     console.log('Usuario admin creado: ' + admin.email);
     console.log('Usuario coordinador creado: ' + coordinador.email);
-    console.log('Usuario operario creado: operario@greensmart.com');
+    console.log('Usuario operario creado: ' + operario.email);
 
+    // Crear lotes
     console.log('Creando lotes...');
     const loteElRoble = await prisma.lote.create({
         data: {
@@ -94,6 +98,7 @@ async function main() {
     console.log('Lote creado: ' + loteLasPalmas.nombre);
     console.log('Lote creado: ' + loteLaLoma.nombre);
 
+    //Crear etapas
     console.log('Creando etapas...');
     await prisma.etapa.createMany({
         data: [
@@ -128,9 +133,11 @@ async function main() {
     });
     console.log('4 etapas creadas');
 
+    // Crear actividades
     console.log('Creando actividades...');
     await prisma.actividad.createMany({
         data: [
+            // Tareas creadas por el Admin y asignadas al Coordinador
             {
                 tipo: 'RIEGO',
                 descripcion: 'Riego por goteo durante 2 horas',
@@ -140,6 +147,8 @@ async function main() {
                 novedades: 'Sin novedades, riego normal',
                 costo: 45000,
                 loteId: loteElRoble.id,
+                creadoPorId: admin.id,
+                asignadoAId: coordinador.id,
             },
             {
                 tipo: 'FERTILIZACION',
@@ -150,7 +159,10 @@ async function main() {
                 novedades: 'Se aplicaron 50 kg de compost',
                 costo: 120000,
                 loteId: loteElRoble.id,
+                creadoPorId: admin.id,
+                asignadoAId: coordinador.id,
             },
+            // Tareas reasignadas por el Coordinador al Operario
             {
                 tipo: 'PODA',
                 descripcion: 'Poda de formacion de ramas bajas',
@@ -158,6 +170,8 @@ async function main() {
                 estado: 'PENDIENTE',
                 costo: 80000,
                 loteId: loteElRoble.id,
+                creadoPorId: admin.id,
+                asignadoAId: operario.id, // El coordinador la reasignó aquí
             },
             {
                 tipo: 'FUMIGACION',
@@ -166,7 +180,10 @@ async function main() {
                 estado: 'PENDIENTE',
                 costo: 150000,
                 loteId: loteElRoble.id,
+                creadoPorId: admin.id,
+                asignadoAId: operario.id,
             },
+            // Tareas normales
             {
                 tipo: 'RIEGO',
                 descripcion: 'Riego por aspersion',
@@ -175,6 +192,8 @@ async function main() {
                 estado: 'COMPLETADA',
                 costo: 30000,
                 loteId: loteLasPalmas.id,
+                creadoPorId: coordinador.id,
+                asignadoAId: operario.id,
             },
             {
                 tipo: 'DESHIERBE',
@@ -183,6 +202,8 @@ async function main() {
                 estado: 'EN_PROCESO',
                 costo: 60000,
                 loteId: loteLasPalmas.id,
+                creadoPorId: coordinador.id,
+                asignadoAId: operario.id,
             },
             {
                 tipo: 'COSECHA',
@@ -190,6 +211,8 @@ async function main() {
                 fechaProgramada: new Date('2026-11-01'),
                 estado: 'PENDIENTE',
                 loteId: loteLaLoma.id,
+                creadoPorId: admin.id,
+                asignadoAId: null, // Pendiente por asignar
             },
             {
                 tipo: 'PLATEO',
@@ -198,11 +221,14 @@ async function main() {
                 estado: 'PENDIENTE',
                 costo: 40000,
                 loteId: loteLaLoma.id,
+                creadoPorId: admin.id,
+                asignadoAId: null,
             },
         ],
     });
     console.log('8 actividades creadas');
 
+    // Crear monitoreos
     console.log('Creando monitoreos...');
     await prisma.monitoreo.createMany({
         data: [
@@ -257,9 +283,9 @@ async function main() {
     console.log('Seed completado con exito');
     console.log('');
     console.log('Credenciales de prueba:');
-    console.log('   Admin:       admin@greensmart.com / 123456');
-    console.log('   Coordinador: coordinador@greensmart.com / 123456');
-    console.log('   Operario:    operario@greensmart.com / 123456');
+    console.log('   Admin:       admin@greensmart.com / ' + clave);
+    console.log('   Coordinador: coordinador@greensmart.com / ' + clave);
+    console.log('   Operario:    operario@greensmart.com / ' + clave);
 }
 
 main()

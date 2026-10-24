@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-// 1. Importar los controladores (incluyendo el nuevo de recuperar)
+//Importar los controladores
 const {
     registrar,
     login,
@@ -11,7 +11,7 @@ const {
     restablecerPassword
 } = require('../controllers/auth');
 
-// 2. Importar los middlewares de seguridad
+// Importar los middlewares de seguridad
 const { verificarLogin, verificarRol } = require('../middlewares/auth');
 
 // Configuracion del limite de intentos para el login
@@ -21,12 +21,12 @@ const limiteLogin = rateLimit({
     message: { error: 'Demasiados intentos, intenta de nuevo en 15 minutos' },
 });
 
-// --- RUTAS PUBLICAS ---
+// Rutas públicas
 router.post('/register', registrar);
 router.post('/login', limiteLogin, login);
-router.post('/recuperar', restablecerPassword); // <-- NUEVA RUTA PÚBLICA
+router.post('/recuperar', restablecerPassword);
 
-// --- RUTAS PROTEGIDAS (Solo Administrador) ---
+// Rutas protegidas (Solo admin)
 router.get('/usuarios', verificarLogin, verificarRol('ADMINISTRADOR'), listarUsuarios);
 router.put('/usuarios/:id/rol', verificarLogin, verificarRol('ADMINISTRADOR'), cambiarRol);
 

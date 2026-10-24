@@ -69,9 +69,14 @@ model Usuario {
   email      String      @unique
   password   String
   rol        Rol         @default(OPERARIO)
+  activo     Boolean     @default(true)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   monitoreos Monitoreo[]
+
+  // Relaciones para las tareas
+  actividadesAsignadas Actividad[] @relation("AsignadoA")
+  actividadesCreadas   Actividad[] @relation("CreadoPor")
 }
 
 model Lote {
@@ -114,6 +119,12 @@ model Actividad {
   lote            Lote             @relation(fields: [loteId], references: [id], onDelete: Cascade)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+
+  creadoPorId Int?
+  creadoPor   Usuario? @relation("CreadoPor", fields: [creadoPorId], references: [id])
+
+  asignadoAId Int?
+  asignadoA   Usuario? @relation("AsignadoA", fields: [asignadoAId], references: [id])
 }
 
 model Monitoreo {
