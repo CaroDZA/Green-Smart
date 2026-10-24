@@ -47,11 +47,14 @@ const crearLote = async (req, res) => {
     }
 };
 
-// Listar todos los lotes (SOLO LOS ACTIVOS)
+// Listar lotes (con opción de ver inactivos)
 const listarLotes = async (req, res) => {
     try {
+        // Si en la URL llega ?inactivos=true, trae los inactivos. Si no, trae los activos.
+        const soloInactivos = req.query.inactivos === 'true';
+
         const lotes = await prisma.lote.findMany({
-            where: { activo: true }, // <-- Filtro agregado
+            where: { activo: !soloInactivos },
             orderBy: { createdAt: 'desc' },
         });
 

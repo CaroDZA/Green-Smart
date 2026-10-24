@@ -118,6 +118,48 @@ const listarUsuarios = async (req, res) => {
     }
 };
 
+// Restablecer contraseña validando el correo
+const restablecerPassword = async (req, res) => {
+    try {
+        const { email, nuevaPassword } = req.body;
+
+        // Validar que vengan los dos campos
+        if (!email || !nuevaPassword) {
+            return res.status(400).json({ error: 'El email y la nueva contraseña son obligatorios' });
+        }
+
+        if (typeof nuevaPassword !== 'string' || nuevaPassword.length < 6) {
+            return res.status(400).json({ error: 'La contraseña debe tener minimo 6 caracteres' });
+        }
+
+        // Normalizar y buscar el usuario
+        const emailLimpio = email.trim().toLowerCase();
+        const usuario = await prisma.usuario.findUnique({ where: { email: emailLimpio } });
+
+        // Validación clave: El correo debe existir
+        if (!usuario) {
+            return res.status(404).json({ error: 'No existe un usuario registrado con ese correo' });
+        }
+
+        // Encriptar la nueva contraseña
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(nuevaPassword, salt);
+
+        // Actualizar en la base de datos
+        await prisma.usuario.update({
+            where: { id: usuario.id },
+            data: { password: hash },
+        });
+
+        res.json({
+            mensaje: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesion.'
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+};
+
 // Cambiar el rol de un usuario (solo Admin)
 const cambiarRol = async (req, res) => {
     try {
@@ -155,4 +197,4 @@ const cambiarRol = async (req, res) => {
     }
 };
 
-module.exports = { registrar, login, listarUsuarios, cambiarRol };
+module.exports = { registrar, login, listarUsuarios, cambiarRol, restablecerPassword };
