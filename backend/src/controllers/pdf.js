@@ -1,10 +1,15 @@
 const PDFDocument = require('pdfkit');
 const prisma = require('../utils/prisma');
+const { esIdValido } = require('../utils/validar');
 
 // Genera un PDF con el historial completo de un lote
 const generarPDFLote = async (req, res) => {
     try {
         const { loteId } = req.params;
+
+        if (!esIdValido(loteId)) {
+            return res.status(400).json({ error: 'El loteId no es valido' });
+        }
 
         const lote = await prisma.lote.findUnique({
             where: { id: parseInt(loteId) },
@@ -178,6 +183,9 @@ const generarPDFLote = async (req, res) => {
         doc.end();
     } catch (error) {
         console.log(error);
+        if (res.headersSent) {
+            return res.end();
+        }
         res.status(500).json({ error: 'Error del servidor' });
     }
 };

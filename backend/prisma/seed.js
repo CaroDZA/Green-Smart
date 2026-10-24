@@ -10,6 +10,11 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+    if (process.env.NODE_ENV === 'production' || process.argv[2] !== '--confirmar') {
+        console.log('Este seed BORRA todos los datos. Usa: npm run seed -- --confirmar');
+        return;
+    }
+
     console.log('Iniciando seed de Green Smart...');
 
     console.log('Limpiando datos anteriores...');
@@ -20,7 +25,8 @@ async function main() {
     await prisma.usuario.deleteMany();
 
     console.log('Creando usuarios...');
-    const passwordEncriptada = await bcrypt.hash('123456', 10);
+    const clave = process.env.SEED_PASSWORD || '123456';
+    const passwordEncriptada = await bcrypt.hash(clave, 10);
 
     const admin = await prisma.usuario.create({
         data: {

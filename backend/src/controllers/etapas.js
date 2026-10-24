@@ -56,6 +56,7 @@ const crearEtapa = async (req, res) => {
 const listarEtapas = async (req, res) => {
     try {
         const etapas = await prisma.etapa.findMany({
+            where: { lote: { activo: true } },
             include: { lote: true },
             orderBy: { fechaInicio: 'desc' },
         });
@@ -75,6 +76,7 @@ const listarPorLote = async (req, res) => {
 
     try {
         const lote = await prisma.lote.findUnique({
+            where: { lote: { activo: true } },
             where: { id: parseInt(loteId) },
         });
 

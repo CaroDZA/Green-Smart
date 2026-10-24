@@ -43,23 +43,25 @@ const historialLote = async (req, res) => {
 
 const resumenGeneral = async (req, res) => {
     try {
+        // Solo se cuenta lo que pertenece a lotes activos
         const totalLotes = await prisma.lote.count({ where: { activo: true } });
-        const totalActividades = await prisma.actividad.count();
-        const totalMonitoreos = await prisma.monitoreo.count();
+        const totalActividades = await prisma.actividad.count({ where: { lote: { activo: true } } });
+        const totalMonitoreos = await prisma.monitoreo.count({ where: { lote: { activo: true } } });
 
-        const pendientes = await prisma.actividad.count({ where: { estado: 'PENDIENTE' } });
-        const enProceso = await prisma.actividad.count({ where: { estado: 'EN_PROCESO' } });
-        const completadas = await prisma.actividad.count({ where: { estado: 'COMPLETADA' } });
-        const canceladas = await prisma.actividad.count({ where: { estado: 'CANCELADA' } });
+        const pendientes = await prisma.actividad.count({ where: { estado: 'PENDIENTE', lote: { activo: true } } });
+        const enProceso = await prisma.actividad.count({ where: { estado: 'EN_PROCESO', lote: { activo: true } } });
+        const completadas = await prisma.actividad.count({ where: { estado: 'COMPLETADA', lote: { activo: true } } });
+        const canceladas = await prisma.actividad.count({ where: { estado: 'CANCELADA', lote: { activo: true } } });
 
         const porTipo = await prisma.actividad.groupBy({
             by: ['tipo'],
+            where: { lote: { activo: true } },
             _count: { tipo: true },
         });
 
         const costos = await prisma.actividad.aggregate({
             _sum: { costo: true },
-            where: { costo: { not: null } },
+            where: { costo: { not: null }, lote: { activo: true } },
         });
 
         res.json({
@@ -99,8 +101,9 @@ const reportePorFechas = async (req, res) => {
             return res.status(400).json({ error: 'El rango maximo es de 12 meses' });
         }
 
-        const whereActividades = { fechaProgramada: { gte: inicio, lte: fin } };
-        const whereMonitoreos = { fecha: { gte: inicio, lte: fin } };
+        // El filtro de lotes activos va DENTRO de cada where (una sola clave "where" por consulta)
+        const whereActividades = { fechaProgramada: { gte: inicio, lte: fin }, lote: { activo: true } };
+        const whereMonitoreos = { fecha: { gte: inicio, lte: fin }, lote: { activo: true } };
 
         if (loteId) {
             if (!esIdValido(loteId)) {
@@ -136,10 +139,10 @@ const reportePorFechas = async (req, res) => {
 
 const alertas = async (req, res) => {
     try {
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
+        const hoy = new Date(Date.now() - 5 * 60 * 60 * 1000);
+        hoy.setUTCHours(0, 0, 0, 0);
         const en3Dias = new Date(hoy);
-        en3Dias.setDate(en3Dias.getDate() + 3);
+        en3Dias.setUTCDate(en3Dias.getUTCDate() + 3);
 
         const vencidas = await prisma.actividad.findMany({
             where: {

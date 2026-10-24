@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../utils/prisma');
 const { crearToken } = require('../utils/jwt');
+const { esIdValido } = require('../utils/validar');
 
 // Registrar un usuario nuevo
 const registrar = async (req, res) => {
@@ -123,6 +124,10 @@ const cambiarRol = async (req, res) => {
         const { id } = req.params;
         const { rol } = req.body;
 
+        if (!esIdValido(id)) {
+            return res.status(400).json({ error: 'El id no es valido' });
+        }
+
         const rolesValidos = ['ADMINISTRADOR', 'COORDINADOR', 'OPERARIO'];
         if (!rolesValidos.includes(rol)) {
             return res.status(400).json({ error: 'Rol no válido' });
@@ -130,6 +135,11 @@ const cambiarRol = async (req, res) => {
 
         if (parseInt(id) === req.usuario.id) {
             return res.status(400).json({ error: 'No puedes cambiar tu propio rol' });
+        }
+
+        const existe = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
+        if (!existe) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
         const usuario = await prisma.usuario.update({

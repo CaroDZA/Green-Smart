@@ -65,6 +65,7 @@ const crearMonitoreo = async (req, res) => {
 const listarMonitoreos = async (req, res) => {
     try {
         const monitoreos = await prisma.monitoreo.findMany({
+            where: { lote: { activo: true } },
             include: {
                 lote: true,
                 usuario: { select: { id: true, nombre: true } },
@@ -87,6 +88,7 @@ const listarPorLote = async (req, res) => {
 
     try {
         const lote = await prisma.lote.findUnique({
+            where: { lote: { activo: true } },
             where: { id: parseInt(loteId) },
         });
 

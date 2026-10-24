@@ -64,6 +64,7 @@ const crearActividad = async (req, res) => {
 const listarActividades = async (req, res) => {
     try {
         const actividades = await prisma.actividad.findMany({
+            where: { lote: { activo: true } },
             include: { lote: true },
             orderBy: { fechaProgramada: 'desc' },
         });
