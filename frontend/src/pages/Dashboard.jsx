@@ -1,3 +1,6 @@
+// Página Dashboard: resumen general y estado de cada lote (RF-05)
+
+// Link: enlace a otra página. useNavigate: cambiar de página con código
 import { Link, useNavigate } from 'react-router-dom';
 import { Dona } from '../components/Graficas';
 import { Cargando, ErrorCarga, Etiqueta, Vacio } from '../components/Mensajes';
@@ -9,6 +12,7 @@ import {
     claseEstado, ESTADOS_ACTIVIDAD, ESTADOS_CULTIVO, etiqueta, fmtDia, fmtFecha, fmtFechaHora, TIPOS_ACTIVIDAD,
 } from '../utils/formatos';
 
+// Color de cada estado de actividad en la gráfica
 const COLORES_ACTIVIDAD = {
     PENDIENTE: 'var(--warning)',
     EN_PROCESO: 'var(--info)',
@@ -16,11 +20,11 @@ const COLORES_ACTIVIDAD = {
     CANCELADA: 'var(--text-muted)',
 };
 
-// RF-05: panel con el estado actual de cada lote según su último monitoreo
 export default function Dashboard() {
     const { usuario } = useSesion();
     const navigate = useNavigate();
 
+    // Pide al backend: resumen, estado de lotes, alertas y monitoreos
     const { datos, cargando, error, recargar } = useCarga(async () => {
         const [resumen, panel, alertas, monitoreos] = await Promise.all([
             reportesService.resumen(),
@@ -31,24 +35,32 @@ export default function Dashboard() {
         return { resumen, panel, alertas, monitoreos };
     });
 
+    // Primer nombre para el saludo
     const primerNombre = usuario.nombre.split(' ')[0];
 
+    // Mientras carga
     if (cargando && !datos) return <div className="card"><Cargando texto="Cargando dashboard…" /></div>;
+    // Si falló
     if (error) return <div className="card"><ErrorCarga error={error} onReintentar={recargar} /></div>;
 
     const { resumen, panel, alertas, monitoreos } = datos;
-    // Vencidas y próximas (3 días) vienen calculadas por el backend en /reportes/alertas
+    // Cantidad de actividades vencidas (la calcula el backend)
     const vencidas = alertas.actividadesVencidas.length;
+    // Vencidas y próximas en una sola lista
     const recordatorios = [
         ...alertas.actividadesVencidas.map((a) => ({ ...a, vencida: true })),
         ...alertas.actividadesProximas.map((a) => ({ ...a, vencida: false })),
     ];
+    // Cuántos lotes están en estado crítico
     const criticos = panel.filter((p) => p.ultimoMonitoreo?.estado === 'CRITICO').length;
+    // Cuántos lotes están en buen estado
     const buenos = panel.filter((p) => p.ultimoMonitoreo?.estado === 'BUENO').length;
+    // Actividades por estado (vienen del backend)
     const porEstado = resumen.actividadesPorEstado;
 
     return (
         <section>
+            {/* Saludo y botón */}
             <div className="view-head">
                 <div>
                     <div className="view-title">Hola, {primerNombre} 👋</div>
@@ -59,7 +71,9 @@ export default function Dashboard() {
                 </Link>
             </div>
 
+            {/* ---------- 4 TARJETAS DE NÚMEROS ---------- */}
             <div className="kpi-grid">
+                {/* Lotes activos */}
                 <div className="kpi-card">
                     <div className="kpi-row">
                         <span className="kpi-label">Lotes activos</span>
@@ -68,16 +82,19 @@ export default function Dashboard() {
                     <div className="kpi-value">{resumen.totalLotes}</div>
                     <div className="kpi-trend">{buenos} en buen estado</div>
                 </div>
+                {/* Actividades pendientes o en proceso */}
                 <div className="kpi-card">
                     <div className="kpi-row">
                         <span className="kpi-label">Actividades por hacer</span>
                         <div className="kpi-icon info"><IconoCalendario /></div>
                     </div>
                     <div className="kpi-value">{porEstado.pendientes + porEstado.enProceso}</div>
+                    {/* En rojo si hay vencidas */}
                     <div className={`kpi-trend ${vencidas ? 'down' : ''}`}>
                         {vencidas ? `${vencidas} vencidas` : 'pendientes / en proceso, ninguna vencida'}
                     </div>
                 </div>
+                {/* Monitoreos registrados */}
                 <div className="kpi-card">
                     <div className="kpi-row">
                         <span className="kpi-label">Monitoreos registrados</span>
@@ -88,6 +105,7 @@ export default function Dashboard() {
                         {monitoreos[0] ? `último: ${fmtFecha(monitoreos[0].fecha)}` : 'sin registros aún'}
                     </div>
                 </div>
+                {/* Lotes críticos */}
                 <div className="kpi-card">
                     <div className="kpi-row">
                         <span className="kpi-label">Lotes en estado crítico</span>
@@ -99,6 +117,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid-2">
+                {/* ---------- ESTADO DE CADA LOTE ---------- */}
                 <div className="card">
                     <div className="card-head">
                         <div>
@@ -111,10 +130,13 @@ export default function Dashboard() {
                         <Vacio titulo="No hay datos disponibles" mensaje="Registra lotes y monitoreos para ver el estado del cultivo." />
                     ) : (
                         <div className="txn-list">
+                            {/* Una fila por lote; al hacer clic abre su detalle */}
                             {panel.map((p) => {
+                                // Último monitoreo del lote
                                 const m = p.ultimoMonitoreo;
                                 return (
                                     <div key={p.loteId} className="txn clickable" onClick={() => navigate(`/lotes?lote=${p.loteId}`)}>
+                                        {/* Ícono rojo, amarillo o verde según el estado */}
                                         <div className={`txn-icon ${m?.estado === 'CRITICO' ? 'danger' : m?.estado === 'REGULAR' ? 'warning' : ''}`}>
                                             <IconoLote size={16} />
                                         </div>
@@ -132,6 +154,7 @@ export default function Dashboard() {
                     )}
                 </div>
 
+                {/* ---------- GRÁFICA DE ACTIVIDADES ---------- */}
                 <div className="card">
                     <div className="card-head">
                         <div>
@@ -158,6 +181,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid-2">
+                {/* ---------- ACTIVIDADES VENCIDAS Y PRÓXIMAS ---------- */}
                 <div className="card">
                     <div className="card-head">
                         <div>
@@ -170,10 +194,12 @@ export default function Dashboard() {
                         <Vacio titulo="Nada pendiente" mensaje="No hay actividades vencidas ni para los próximos 3 días." />
                     ) : (
                         <div className="txn-list">
+                            {/* Una fila por actividad; al hacer clic abre su lote */}
                             {recordatorios.map((a) => {
                                 const { vencida } = a;
                                 return (
                                     <div key={a.id} className="txn clickable" onClick={() => navigate(`/lotes?lote=${a.lote.id}`)}>
+                                        {/* Rojo si está vencida, amarillo si es próxima */}
                                         <div className={`txn-icon ${vencida ? 'danger' : 'warning'}`}><IconoReloj size={16} /></div>
                                         <div className="txn-info">
                                             <div className="txn-title">{etiqueta(TIPOS_ACTIVIDAD, a.tipo)} · {a.lote?.nombre}</div>
@@ -187,6 +213,7 @@ export default function Dashboard() {
                     )}
                 </div>
 
+                {/* ---------- ÚLTIMOS 5 MONITOREOS ---------- */}
                 <div className="card">
                     <div className="card-head">
                         <div className="card-title">Últimos monitoreos</div>

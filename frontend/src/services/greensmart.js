@@ -7,18 +7,22 @@ import { api } from './api';
 export const authService = {
     // POST /auth/login → inicia sesión
     login: (email, password) => api.post('/auth/login', { email, password }),
-    // POST /auth/register → crea un usuario (el backend lo crea como OPERARIO)
+    // POST /auth/register → crea un usuario (solo administrador; el backend lo crea como OPERARIO)
     registrar: (nombre, email, password) => api.post('/auth/register', { nombre, email, password }),
     // GET /auth/usuarios → lista de usuarios (solo administrador)
     listarUsuarios: () => api.get('/auth/usuarios').then((r) => r.usuarios),
     // PUT /auth/usuarios/:id/rol → cambia el rol (solo administrador)
     cambiarRol: (id, rol) => api.put(`/auth/usuarios/${id}/rol`, { rol }),
+    // PUT /auth/usuarios/:id → cambia nombre y correo (solo administrador)
+    actualizarDatos: (id, nombre, email) => api.put(`/auth/usuarios/${id}`, { nombre, email }),
+    // PUT /auth/usuarios/:id/password → pone una contraseña nueva (solo administrador)
+    restablecerPassword: (id, nuevaPassword) => api.put(`/auth/usuarios/${id}/password`, { nuevaPassword }),
 };
 
 // Módulo de lotes (backend: routes/lotes.js)
 export const lotesService = {
-    // GET /lotes → lotes activos
-    listar: () => api.get('/lotes').then((r) => r.lotes),
+    // GET /lotes → lotes activos. Con inactivos = true trae los desactivados
+    listar: (inactivos = false) => api.get(inactivos ? '/lotes?inactivos=true' : '/lotes').then((r) => r.lotes),
     // GET /lotes/:id → un lote con sus actividades
     ver: (id) => api.get(`/lotes/${id}`).then((r) => r.lote),
     // POST /lotes → registrar lote
@@ -45,7 +49,7 @@ export const etapasService = {
 
 // Módulo de actividades (backend: routes/actividades.js)
 export const actividadesService = {
-    // GET /actividades → todas las actividades
+    // GET /actividades → todas las actividades (el operario solo recibe las suyas)
     listar: () => api.get('/actividades').then((r) => r.actividades),
     // GET /actividades/lote/:loteId → actividades de un lote
     porLote: (loteId) => api.get(`/actividades/lote/${loteId}`).then((r) => r.actividades),

@@ -152,6 +152,44 @@ const restablecerPassword = async (req, res) => {
     }
 };
 
+// Actualizar nombre y correo de un usuario (solo Admin)
+const actualizarUsuario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre, email } = req.body;
+
+        if (!esIdValido(id)) {
+            return res.status(400).json({ error: 'El id no es valido' });
+        }
+
+        if (!nombre || !email) {
+            return res.status(400).json({ error: 'Faltan datos obligatorios' });
+        }
+
+        const usuario = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
+        if (!usuario) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        // El correo nuevo no puede tenerlo otro usuario
+        const repetido = await prisma.usuario.findUnique({ where: { email } });
+        if (repetido && repetido.id !== usuario.id) {
+            return res.status(409).json({ error: 'Ese email ya está registrado' });
+        }
+
+        const actualizado = await prisma.usuario.update({
+            where: { id: usuario.id },
+            data: { nombre, email },
+            select: { id: true, nombre: true, email: true, rol: true },
+        });
+
+        res.json({ mensaje: 'Usuario actualizado', usuario: actualizado });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+};
+
 // Cambiar el rol de un usuario (solo Admin)
 const cambiarRol = async (req, res) => {
     try {
@@ -189,4 +227,4 @@ const cambiarRol = async (req, res) => {
     }
 };
 
-module.exports = { registrar, login, listarUsuarios, cambiarRol, restablecerPassword };
+module.exports = { registrar, login, listarUsuarios, cambiarRol, restablecerPassword, actualizarUsuario };

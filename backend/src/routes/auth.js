@@ -8,7 +8,8 @@ const {
     login,
     listarUsuarios,
     cambiarRol,
-    restablecerPassword
+    restablecerPassword,
+    actualizarUsuario
 } = require('../controllers/auth');
 
 // Importar los middlewares de seguridad
@@ -29,6 +30,7 @@ router.post('/login', limiteLogin, login);
 // Rutas protegidas (Solo admin)
 router.post('/register', verificarLogin, verificarRol('ADMINISTRADOR'), registrar);
 router.get('/usuarios', verificarLogin, verificarRol('ADMINISTRADOR'), listarUsuarios);
+router.put('/usuarios/:id', verificarLogin, verificarRol('ADMINISTRADOR'), actualizarUsuario);
 router.put('/usuarios/:id/rol', verificarLogin, verificarRol('ADMINISTRADOR'), cambiarRol);
 router.put('/usuarios/:id/password', verificarLogin, verificarRol('ADMINISTRADOR'), restablecerPassword);
 

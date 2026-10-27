@@ -1,8 +1,10 @@
-// Formulario para registrar un usuario o cambiar su rol (GreenControl)
+// Formulario para registrar un usuario o editar sus datos, rol y contraseña (SmartControl)
 
 import { useState } from 'react';
 // Para mostrar el mensaje de éxito
 import { useAvisos } from '../../context/AvisosContexto';
+// Para saber quién inició sesión
+import { useSesion } from '../../context/SesionContexto';
 // Llamadas al backend de usuarios
 import { authService } from '../../services/greensmart';
 import { ROLES } from '../../utils/formatos';
@@ -12,10 +14,13 @@ import { Campo, ErrorForm, Opciones, PieForm } from './CamposFormulario';
 // Si llega "usuario" se edita; si no, se registra uno nuevo
 export default function FormularioUsuario({ usuario, onCerrar, onGuardado }) {
     const { toast } = useAvisos();
+    const { usuario: yo } = useSesion();
+    // true si estoy editando mi propio usuario (no puedo cambiar mi rol)
+    const esYo = usuario?.id === yo.id;
     // Valores de los campos
     const [datos, setDatos] = useState({
-        nombre: '',
-        email: '',
+        nombre: usuario?.nombre || '',
+        email: usuario?.email || '',
         password: '',
         confirmar: '',
         rol: usuario?.rol || 'OPERARIO',
@@ -33,22 +38,25 @@ export default function FormularioUsuario({ usuario, onCerrar, onGuardado }) {
         e.preventDefault();
         setError('');
 
-        // Revisiones solo al registrar
-        if (!usuario) {
-            // Nombre, correo y contraseña son obligatorios
-            if (!datos.nombre.trim() || !datos.email.trim() || !datos.password) {
-                return setError('El nombre, el correo y la contraseña son obligatorios.');
-            }
-            // Las contraseñas deben ser iguales
-            if (datos.password !== datos.confirmar) return setError('Las contraseñas no coinciden.');
-        }
+        // Nombre y correo siempre son obligatorios
+        if (!datos.nombre.trim() || !datos.email.trim()) return setError('El nombre y el correo son obligatorios.');
+        // Al registrar también se necesita la contraseña
+        if (!usuario && !datos.password) return setError('La contraseña es obligatoria.');
+        // Las contraseñas deben ser iguales
+        if (datos.password !== datos.confirmar) return setError('Las contraseñas no coinciden.');
 
         setGuardando(true);
         try {
             if (usuario) {
-                // Editar: cambia el rol solo si es diferente
+                // Editar: cambia nombre y correo solo si son diferentes
+                if (datos.nombre.trim() !== usuario.nombre || datos.email.trim() !== usuario.email) {
+                    await authService.actualizarDatos(usuario.id, datos.nombre.trim(), datos.email.trim());
+                }
+                // Cambia el rol solo si es diferente
                 if (datos.rol !== usuario.rol) await authService.cambiarRol(usuario.id, datos.rol);
-                toast('Usuario actualizado', `${usuario.nombre}: ${ROLES[datos.rol]}`);
+                // Cambia la contraseña solo si se escribió una nueva
+                if (datos.password) await authService.restablecerPassword(usuario.id, datos.password);
+                toast('Usuario actualizado', `${datos.nombre.trim()}: ${ROLES[datos.rol]}`);
             } else {
                 // Registrar: el backend lo crea como Operario
                 const { usuario: nuevo } = await authService.registrar(datos.nombre.trim(), datos.email.trim(), datos.password);
@@ -58,8 +66,10 @@ export default function FormularioUsuario({ usuario, onCerrar, onGuardado }) {
             }
             onGuardado();
         } catch (err) {
+            // Si el backend aún no tiene la ruta para cambiar nombre y correo, se explica
+            if (err.rutaNoExiste) setError('El backend todavía no tiene la ruta para cambiar nombre y correo (PUT /auth/usuarios/:id).');
             // Ej: "Ese email ya está registrado"
-            setError(err.message);
+            else setError(err.message);
         } finally {
             setGuardando(false);
         }
@@ -75,17 +85,23 @@ export default function FormularioUsuario({ usuario, onCerrar, onGuardado }) {
             <form id="formUsuario" onSubmit={enviar} noValidate>
                 <ErrorForm mensaje={error} />
                 {usuario ? (
-                    // Editar: nombre y correo bloqueados (el backend aún no permite cambiarlos)
+                    // Editar: nombre, correo y contraseña nueva
                     <>
-                        <div className="info-banner">
-                            <b>Próximamente:</b> actualizar nombre y correo estará disponible cuando se habilite en el servidor. Por ahora puedes cambiar el rol.
-                        </div>
                         <div className="form-row-2">
-                            <Campo etiqueta="Nombre completo">
-                                <input className="form-input perfil-input" value={usuario.nombre} readOnly disabled />
+                            <Campo etiqueta="Nombre completo" requerido>
+                                <input className="form-input" value={datos.nombre} onChange={cambiar('nombre')} />
                             </Campo>
-                            <Campo etiqueta="Correo electrónico">
-                                <input className="form-input perfil-input" value={usuario.email} readOnly disabled />
+                            <Campo etiqueta="Correo electrónico" requerido>
+                                <input type="email" className="form-input" value={datos.email} onChange={cambiar('email')} />
+                            </Campo>
+                        </div>
+                        {/* Contraseña nueva: si se deja vacía no se cambia */}
+                        <div className="form-row-2">
+                            <Campo etiqueta="Nueva contraseña (opcional)">
+                                <input type="password" className="form-input" value={datos.password} onChange={cambiar('password')} autoComplete="new-password" placeholder="Mínimo 6 caracteres" />
+                            </Campo>
+                            <Campo etiqueta="Confirmar contraseña">
+                                <input type="password" className="form-input" value={datos.confirmar} onChange={cambiar('confirmar')} autoComplete="new-password" />
                             </Campo>
                         </div>
                     </>
@@ -109,7 +125,8 @@ export default function FormularioUsuario({ usuario, onCerrar, onGuardado }) {
                     </>
                 )}
                 <Campo etiqueta="Rol" requerido>
-                    <select className="form-input select" value={datos.rol} onChange={cambiar('rol')}>
+                    {/* Bloqueado si es mi propio usuario */}
+                    <select className="form-input select" value={datos.rol} onChange={cambiar('rol')} disabled={esYo} title={esYo ? 'No puedes cambiar tu propio rol' : undefined}>
                         <Opciones mapa={ROLES} />
                     </select>
                 </Campo>

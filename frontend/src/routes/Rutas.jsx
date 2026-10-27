@@ -13,7 +13,7 @@ import Login from '../pages/Login';
 import Lotes from '../pages/Lotes';
 import Monitoreos from '../pages/Monitoreos';
 import Reportes from '../pages/Reportes';
-import GreenControl from '../pages/GreenControl';
+import SmartControl from '../pages/SmartControl';
 
 export default function Rutas() {
     // Usuario actual y lo que puede hacer
@@ -38,8 +38,8 @@ export default function Rutas() {
                 <Route path="/etapas" element={<Etapas />} />
                 <Route path="/actividades" element={<Actividades />} />
                 <Route path="/monitoreos" element={<Monitoreos />} />
-                {/* GreenControl solo para el administrador */}
-                {puede.gestionarUsuarios && <Route path="/greencontrol" element={<GreenControl />} />}
+                {/* SmartControl solo para el administrador */}
+                {puede.gestionarUsuarios && <Route path="/smartcontrol" element={<SmartControl />} />}
                 {/* Cualquier otra dirección va al dashboard */}
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>

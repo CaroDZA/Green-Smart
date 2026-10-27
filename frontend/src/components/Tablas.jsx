@@ -8,8 +8,8 @@ import { useAvisos } from '../context/AvisosContexto';
 // Llamadas al backend para eliminar
 import { actividadesService, etapasService, monitoreosService } from '../services/greensmart';
 import {
-    claseEstado, ENFERMEDADES, ESTADOS_ACTIVIDAD, ESTADOS_CULTIVO, ETAPAS, etiqueta,
-    fmtDia, fmtDinero, fmtFechaHora, PLAGAS, TIPOS_ACTIVIDAD,
+    claseEstado, ENFERMEDADES, ESTADOS_ACTIVIDAD, ESTADOS_CULTIVO, estaVencida, ETAPAS, etiqueta,
+    fmtDia, fmtDinero, fmtFecha, fmtFechaHora, PLAGAS, TIPOS_ACTIVIDAD,
 } from '../utils/formatos';
 import { Etiqueta } from './Mensajes';
 import FormularioActividad from './formularios/FormularioActividad';
@@ -19,11 +19,12 @@ import FormularioMonitoreo from './formularios/FormularioMonitoreo';
 import { IconoBorrar, IconoCheck, IconoEditar } from './Iconos';
 
 // Tabla normal (páginas) o pequeña (dentro del detalle del lote)
-function Tabla({ compacta, children }) {
+function Tabla({ compacta, ancha, children }) {
     return compacta ? (
         <div className="detail-table-wrap"><table className="detail-table">{children}</table></div>
     ) : (
-        <div className="table-wrap"><table className="tbl">{children}</table></div>
+        // "ancha" = tabla con muchas columnas, se le quita espacio
+        <div className="table-wrap"><table className={`tbl ${ancha ? 'tbl-ancha' : ''}`}>{children}</table></div>
     );
 }
 
@@ -134,11 +135,13 @@ export function ActividadesTabla({ actividades, mostrarLote, compacta, onCambio 
 
     return (
         <>
-            <Tabla compacta={compacta}>
+            <Tabla compacta={compacta} ancha={mostrarLote}>
                 <thead>
                     <tr>
                         {mostrarLote && <th>Lote</th>}
                         <th>Actividad</th>
+                        {/* "Asignado a" solo en la lista general (ahí el backend manda el nombre) */}
+                        {mostrarLote && <th>Asignado a</th>}
                         <th>Programada</th>
                         <th>Estado</th>
                         <th>Ejecutada</th>
@@ -154,11 +157,16 @@ export function ActividadesTabla({ actividades, mostrarLote, compacta, onCambio 
                         const abierta = a.estado === 'PENDIENTE' || a.estado === 'EN_PROCESO';
                         return (
                             <tr key={a.id}>
-                                {mostrarLote && <td><b>{a.lote?.nombre}</b></td>}
+                                {mostrarLote && <td className="nowrap"><b>{a.lote?.nombre}</b></td>}
                                 <td><b>{etiqueta(TIPOS_ACTIVIDAD, a.tipo)}</b></td>
+                                {mostrarLote && <td className="nowrap">{a.asignadoA?.nombre || <span className="muted">Sin asignar</span>}</td>}
                                 <td className="nowrap">{fmtDia(a.fechaProgramada)}</td>
-                                <td><Etiqueta clase={claseEstado(a.estado)}>{etiqueta(ESTADOS_ACTIVIDAD, a.estado)}</Etiqueta></td>
-                                <td className="nowrap">{a.fechaEjecucion ? fmtFechaHora(a.fechaEjecucion) : <span className="muted">—</span>}</td>
+                                <td className="nowrap">
+                                    <Etiqueta clase={claseEstado(a.estado)}>{etiqueta(ESTADOS_ACTIVIDAD, a.estado)}</Etiqueta>
+                                    {/* Etiqueta roja si ya pasó su fecha y no se ha hecho */}
+                                    {estaVencida(a) && <> <Etiqueta clase="critico">Vencida</Etiqueta></>}
+                                </td>
+                                <td className="nowrap" title={a.fechaEjecucion ? fmtFechaHora(a.fechaEjecucion) : undefined}>{a.fechaEjecucion ? fmtFecha(a.fechaEjecucion) : <span className="muted">—</span>}</td>
                                 <td className="nowrap">{a.costo != null ? fmtDinero(a.costo) : <span className="muted">—</span>}</td>
                                 <td className="cell-wrap">
                                     {a.descripcion || <span className="muted">Sin descripción</span>}
@@ -170,8 +178,8 @@ export function ActividadesTabla({ actividades, mostrarLote, compacta, onCambio 
                                         {abierta && (
                                             <BotonAccion tipo="download-btn" titulo="Registrar como realizada" onClick={() => setCompletando(a)}><IconoCheck size={14} /></BotonAccion>
                                         )}
-                                        {/* Editar (administrador y coordinador) */}
-                                        {puede.planificar && (
+                                        {/* Editar (administrador y coordinador; las completadas ya no se editan) */}
+                                        {puede.planificar && a.estado !== 'COMPLETADA' && (
                                             <BotonAccion tipo="edit-btn" titulo="Editar actividad" onClick={() => setEditando(a)}><IconoEditar /></BotonAccion>
                                         )}
                                         {/* Eliminar (solo administrador) */}

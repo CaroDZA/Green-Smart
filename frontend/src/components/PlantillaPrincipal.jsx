@@ -44,7 +44,7 @@ const PLACEHOLDERS = {
     '/etapas': 'Buscar por lote o etapa…',
     '/actividades': 'Buscar por lote, tipo o descripción…',
     '/monitoreos': 'Buscar por lote, condición o responsable…',
-    '/greencontrol': 'Buscar personal por nombre, correo o rol…',
+    '/smartcontrol': 'Buscar personal por nombre, correo o rol…',
 };
 
 export default function PlantillaPrincipal() {
@@ -100,13 +100,13 @@ export default function PlantillaPrincipal() {
                     </div>
                 ))}
 
-                {/* GreenControl solo para el administrador */}
+                {/* SmartControl solo para el administrador */}
                 {puede.gestionarUsuarios && (
                     <>
                         <div className="sidebar-section-label">Administración</div>
-                        <NavLink to="/greencontrol" onClick={() => setMenuAbierto(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                        <NavLink to="/smartcontrol" onClick={() => setMenuAbierto(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                             <IconoUsuarios className="nav-icon" />
-                            <span>GreenControl</span>
+                            <span>SmartControl</span>
                         </NavLink>
                     </>
                 )}

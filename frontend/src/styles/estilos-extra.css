@@ -225,3 +225,55 @@ textarea.form-input { resize: vertical; min-height: 72px; line-height: 1.5; }
 .nowrap { white-space: nowrap; }
 .lote-card-more { margin-left: auto; }
 .form-input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Cuadrito de lote inactivo: sin clic y un poco apagado */
+.lote-card-inactivo { cursor: default; opacity: 0.85; }
+.lote-card-inactivo:hover { transform: none; box-shadow: var(--shadow-sm); border-color: var(--border-soft); }
+
+/* La parte principal no se estira con tablas anchas: la tabla se desplaza dentro de su recuadro */
+.main { min-width: 0; }
+
+/* Tablas con muchas columnas (actividades): menos espacio a los lados para que quepan */
+table.tbl-ancha th, table.tbl-ancha td { padding-left: 10px; padding-right: 10px; }
+table.tbl-ancha th:first-child, table.tbl-ancha td:first-child { padding-left: 20px; }
+
+/* ---------- CALENDARIO DE ACTIVIDADES ---------- */
+.cal { padding: 16px 20px 20px; }
+/* Mes y flechas */
+.cal-head { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 14px; }
+.cal-head .card-title { min-width: 160px; text-align: center; }
+/* Si la pantalla es pequeña, el calendario se desplaza */
+.cal-scroll { overflow-x: auto; }
+/* 7 columnas, una por día */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(110px, 1fr)); gap: 6px; min-width: 770px; }
+.cal-dia-nombre { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); text-align: center; padding: 4px 0; }
+/* Cuadro de cada día */
+.cal-dia { min-height: 92px; border: 1px solid var(--border-soft); border-radius: 10px; padding: 6px; background: var(--bg-card); display: flex; flex-direction: column; gap: 4px; }
+.cal-dia.vacio { background: transparent; border-style: dashed; opacity: 0.5; }
+/* Día de hoy resaltado */
+.cal-dia.hoy { border: 2px solid var(--green-500); }
+.cal-numero { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+/* Cada actividad dentro del día */
+.cal-act {
+  font-family: var(--font); font-size: 11px; text-align: left; border: none; border-radius: 6px;
+  padding: 3px 6px; cursor: pointer; color: var(--text-primary);
+  border-left: 3px solid var(--text-muted); background: var(--bg-hover);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-act:hover { filter: brightness(0.95); }
+/* Color según el estado */
+.cal-act.pendiente { border-left-color: var(--warning); }
+.cal-act.en_proceso { border-left-color: var(--info); }
+.cal-act.completada { border-left-color: var(--success); }
+.cal-act.cancelada { border-left-color: var(--text-muted); text-decoration: line-through; }
+.cal-act.vencida { border-left-color: var(--danger); background: rgba(192, 86, 63, 0.12); }
+/* Leyenda de colores */
+.cal-leyenda { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 12px; color: var(--text-secondary); }
+.cal-punto { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--text-muted); }
+.cal-punto.pendiente { background: var(--warning); }
+.cal-punto.en_proceso { background: var(--info); }
+.cal-punto.completada { background: var(--success); }
+.cal-punto.vencida { background: var(--danger); }
+
+/* Motivo de desactivación en el cuadrito del lote inactivo */
+.lote-motivo { font-size: 12px; color: var(--text-secondary); background: var(--bg-hover); border-radius: 8px; padding: 8px 10px; line-height: 1.4; }

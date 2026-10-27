@@ -142,6 +142,33 @@ export const COLOR_ESTADO_CULTIVO = {
     CRITICO: 'var(--danger)',  // rojo
 };
 
+// ---------- ACTIVIDAD VENCIDA (misma regla que las alertas del backend) ----------
+
+// Día de hoy en Colombia como "AAAA-MM-DD" (Colombia es UTC-5)
+export const hoyColombia = () => new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+// Vencida = sigue pendiente o en proceso y su fecha ya pasó
+export const estaVencida = (a) =>
+    (a.estado === 'PENDIENTE' || a.estado === 'EN_PROCESO') && a.fechaProgramada.slice(0, 10) < hoyColombia();
+
+// ---------- MOTIVO DE DESACTIVACIÓN DE UN LOTE ----------
+// El backend no tiene campo para el motivo, así que se guarda al final de la descripción
+
+// Texto que separa la descripción del motivo
+const MARCA_MOTIVO = 'Motivo de desactivación: ';
+
+// Agrega el motivo al final de la descripción
+export const agregarMotivo = (descripcion, motivo) => `${descripcion ? `${descripcion}\n` : ''}${MARCA_MOTIVO}${motivo}`;
+
+// Separa la descripción y el motivo para mostrarlos aparte
+export const separarMotivo = (descripcion) => {
+    // Sin descripción o sin motivo: se devuelve igual
+    if (!descripcion || !descripcion.includes(MARCA_MOTIVO)) return { descripcion, motivo: null };
+    // Se corta en la última marca
+    const i = descripcion.lastIndexOf(MARCA_MOTIVO);
+    return { descripcion: descripcion.slice(0, i).trim() || null, motivo: descripcion.slice(i + MARCA_MOTIVO.length).trim() };
+};
+
 // ---------- PERMISOS (iguales a los del backend) ----------
 
 export const permisos = (rol) => ({
@@ -151,7 +178,7 @@ export const permisos = (rol) => ({
     planificar: rol === 'ADMINISTRADOR' || rol === 'COORDINADOR',
     // Eliminar registros
     eliminar: rol === 'ADMINISTRADOR',
-    // Entrar a GreenControl
+    // Entrar a SmartControl
     gestionarUsuarios: rol === 'ADMINISTRADOR',
 });
 

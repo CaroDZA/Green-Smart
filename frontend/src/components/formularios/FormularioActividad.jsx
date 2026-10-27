@@ -3,18 +3,28 @@
 import { useState } from 'react';
 // Para mostrar el mensaje de éxito
 import { useAvisos } from '../../context/AvisosContexto';
-// Llamadas al backend de actividades
-import { actividadesService } from '../../services/greensmart';
-import { aInputFecha, ESTADOS_ACTIVIDAD, TIPOS_ACTIVIDAD } from '../../utils/formatos';
+// Para saber el rol de quien inició sesión
+import { useSesion } from '../../context/SesionContexto';
+// Trae la lista de usuarios
+import { useCarga } from '../../hooks/useCarga';
+// Llamadas al backend de actividades y usuarios
+import { actividadesService, authService } from '../../services/greensmart';
+import { aInputFecha, ESTADOS_ACTIVIDAD, ROLES, TIPOS_ACTIVIDAD } from '../../utils/formatos';
 import VentanaModal from '../VentanaModal';
 import { Campo, ErrorForm, Opciones, PieForm, SelectLote } from './CamposFormulario';
 
 // Si llega "actividad" se edita. Si llega "loteId" el lote ya está elegido
 export default function FormularioActividad({ actividad, loteId, lotes = [], onCerrar, onGuardado }) {
     const { toast } = useAvisos();
+    const { usuario } = useSesion();
+    // Solo el administrador puede ver la lista de usuarios para asignar la tarea
+    const puedeAsignar = usuario.rol === 'ADMINISTRADOR';
+    // Pide los usuarios al backend (si no es admin no pide nada)
+    const { datos: usuarios } = useCarga(() => (puedeAsignar ? authService.listarUsuarios() : Promise.resolve([])), [puedeAsignar]);
     // Valores de los campos
     const [datos, setDatos] = useState({
         loteId: actividad?.loteId || loteId || '',
+        asignadoA: actividad?.asignadoAId || '',
         tipo: actividad?.tipo || 'FERTILIZACION',
         fechaProgramada: aInputFecha(actividad?.fechaProgramada),
         estado: actividad?.estado || 'PENDIENTE',
@@ -58,6 +68,8 @@ export default function FormularioActividad({ actividad, loteId, lotes = [], onC
                     costo,
                     descripcion: datos.descripcion.trim(),
                     novedades: datos.novedades.trim(),
+                    // Solo el admin cambia a quién está asignada (vacío = sin asignar)
+                    asignadoA: puedeAsignar ? (datos.asignadoA ? Number(datos.asignadoA) : null) : undefined,
                 });
             } else {
                 // Crear (POST)
@@ -69,6 +81,8 @@ export default function FormularioActividad({ actividad, loteId, lotes = [], onC
                     // Sin costo no se envía
                     costo: costo ?? undefined,
                     descripcion: datos.descripcion.trim(),
+                    // A quién se le asigna (si no se elige, no se envía)
+                    asignadoA: datos.asignadoA ? Number(datos.asignadoA) : undefined,
                 });
             }
             toast(actividad ? 'Actividad actualizada' : 'Actividad programada', TIPOS_ACTIVIDAD[datos.tipo]);
@@ -116,6 +130,17 @@ export default function FormularioActividad({ actividad, loteId, lotes = [], onC
                         <input type="number" min="0" step="100" className="form-input" value={datos.costo} onChange={cambiar('costo')} placeholder="150000" />
                     </Campo>
                 </div>
+                {/* Asignar la tarea a un usuario (solo administrador) */}
+                {puedeAsignar && (
+                    <Campo etiqueta="Asignar a">
+                        <select className="form-input select" value={datos.asignadoA} onChange={cambiar('asignadoA')}>
+                            <option value="">Sin asignar</option>
+                            {(usuarios || []).map((u) => (
+                                <option key={u.id} value={u.id}>{u.nombre} · {ROLES[u.rol]}</option>
+                            ))}
+                        </select>
+                    </Campo>
+                )}
                 <Campo etiqueta="Descripción">
                     <textarea className="form-input" value={datos.descripcion} onChange={cambiar('descripcion')} placeholder="Aplicación de fertilizante orgánico…" />
                 </Campo>

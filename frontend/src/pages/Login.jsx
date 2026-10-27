@@ -41,42 +41,23 @@ function CampoPassword({ value, onChange, autoComplete }) {
 }
 
 // Pantalla "Restablecer contraseña"
-// Pendiente: el backend aún no tiene esta función, por eso el botón está desactivado
-function RestablecerPassword({ emailInicial, onVolver }) {
-    // Valores de los campos
-    const [datos, setDatos] = useState({ email: emailInicial, password: '', confirmar: '' });
-    // Guarda lo que se escribe en un campo
-    const cambiar = (campo) => (e) => setDatos({ ...datos, [campo]: e.target.value });
-
+// En el backend solo el administrador puede poner una contraseña nueva
+function RestablecerPassword({ onVolver }) {
     return (
-        <form onSubmit={(e) => e.preventDefault()}>
+        <div>
             {/* Volver al login */}
             <button type="button" className="back-link" onClick={onVolver}>← Volver al inicio de sesión</button>
-            {/* Aviso de "Próximamente" */}
+            {/* Explica qué hacer */}
             <div className="info-banner">
-                <b>Próximamente.</b> El restablecimiento de contraseña estará disponible cuando se habilite en el servidor.
+                Pídele al <b>administrador de la finca</b> que te asigne una contraseña nueva desde <b>SmartControl</b>.
+                Después inicia sesión con ella.
             </div>
-            <div className="form-group">
-                <label className="form-label">Correo electrónico</label>
-                <input type="email" className="form-input" value={datos.email} onChange={cambiar('email')} autoComplete="email" />
-            </div>
-            <div className="form-group">
-                <label className="form-label">Nueva contraseña</label>
-                <CampoPassword value={datos.password} onChange={cambiar('password')} autoComplete="new-password" />
-            </div>
-            <div className="form-group">
-                <label className="form-label">Confirmar contraseña</label>
-                <CampoPassword value={datos.confirmar} onChange={cambiar('confirmar')} autoComplete="new-password" />
-            </div>
-            {/* Botón desactivado hasta que exista en el backend */}
-            <button type="submit" className="btn btn-primary" disabled title="Disponible próximamente">
-                Restablecer contraseña
-            </button>
-        </form>
+            <button type="button" className="btn btn-primary" onClick={onVolver}>Entendido</button>
+        </div>
     );
 }
 
-// Página de login (RF-01). Las cuentas se crean en GreenControl
+// Página de login (RF-01). Las cuentas se crean en SmartControl
 export default function Login() {
     const { iniciarSesion } = useSesion();
     const { tema } = useTema();
@@ -122,13 +103,13 @@ export default function Login() {
                     <img src={logo} alt="GreenSmart" />
                     <div className="login-title">{recuperando ? 'Restablecer contraseña' : 'Bienvenido'}</div>
                     <div className="login-sub">
-                        {recuperando ? 'Ingresa tu correo y tu nueva contraseña' : 'Inicia sesión en tu cuenta GreenSmart'}
+                        {recuperando ? '¿Olvidaste tu contraseña?' : 'Inicia sesión en tu cuenta GreenSmart'}
                     </div>
                 </div>
 
                 {/* Muestra "Restablecer" o el formulario de login */}
                 {recuperando ? (
-                    <RestablecerPassword emailInicial={datos.email} onVolver={() => setRecuperando(false)} />
+                    <RestablecerPassword onVolver={() => setRecuperando(false)} />
                 ) : (
                 <form onSubmit={enviar}>
                     <ErrorForm mensaje={error} />
@@ -155,7 +136,7 @@ export default function Login() {
                 {/* Usuarios de prueba (solo se ve mientras programamos) */}
                 {import.meta.env.DEV && !recuperando && (
                     <div className="login-foot">
-                        Demo (seed): <strong>admin@greensmart.com</strong>, <strong>coordinador@greensmart.com</strong> u <strong>operario@greensmart.com</strong> · contraseña 123456
+                        Demo (seed): <strong>admin@greensmart.com</strong>, <strong>coordinador@greensmart.com</strong> u <strong>operario@greensmart.com</strong> · contraseña 123456 (o la de SEED_PASSWORD)
                     </div>
                 )}
             </div>

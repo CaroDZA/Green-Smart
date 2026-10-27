@@ -12,6 +12,7 @@ import {
 } from '../utils/formatos';
 import { Cargando, ErrorCarga, Etiqueta, Vacio } from './Mensajes';
 import FormularioActividad from './formularios/FormularioActividad';
+import FormularioDesactivarLote from './formularios/FormularioDesactivarLote';
 import FormularioEtapa from './formularios/FormularioEtapa';
 import FormularioLote from './formularios/FormularioLote';
 import FormularioMonitoreo from './formularios/FormularioMonitoreo';
@@ -38,7 +39,7 @@ const Dato = ({ etiqueta: label, children }) => (
 
 export default function DetalleLote({ loteId, onCerrar, onCambio }) {
     const { puede } = useSesion();
-    const { confirmar, toast, toastError } = useAvisos();
+    const { toast, toastError } = useAvisos();
     // Pestaña abierta
     const [pestana, setPestana] = useState('resumen');
     // Formulario abierto (lote, etapa, actividad o monitoreo)
@@ -88,24 +89,15 @@ export default function DetalleLote({ loteId, onCerrar, onCambio }) {
         }
     };
 
-    // Desactiva el lote (el backend no lo borra, solo lo oculta)
-    const eliminarLote = async () => {
-        // Pregunta antes
-        const ok = await confirmar({
-            titulo: 'Desactivar lote',
-            mensaje: `“${datos.lote.nombre}” dejará de aparecer en la lista. Su historial se conserva.`,
-            textoOk: 'Desactivar',
-        });
-        if (!ok) return;
-        try {
-            await lotesService.eliminar(loteId);
-            toast('Lote desactivado', datos.lote.nombre);
-            // Recarga la lista y cierra la ventana
-            onCambio?.();
-            onCerrar();
-        } catch (e) {
-            toastError(e);
-        }
+    // Abre el formulario para desactivar el lote (pide el motivo)
+    const eliminarLote = () => setFormulario({ tipo: 'desactivar' });
+
+    // Cuando el lote ya quedó desactivado
+    const desactivado = () => {
+        toast('Lote desactivado', datos.lote.nombre);
+        // Recarga la lista y cierra la ventana
+        onCambio?.();
+        onCerrar();
     };
 
     // Cierra el formulario abierto
@@ -358,6 +350,7 @@ export default function DetalleLote({ loteId, onCerrar, onCambio }) {
             {formulario?.tipo === 'lote' && <FormularioLote lote={lote} onCerrar={cerrarForm} onGuardado={guardadoForm} />}
             {formulario?.tipo === 'etapa' && <FormularioEtapa loteId={loteId} onCerrar={cerrarForm} onGuardado={guardadoForm} />}
             {formulario?.tipo === 'actividad' && <FormularioActividad loteId={loteId} onCerrar={cerrarForm} onGuardado={guardadoForm} />}
+            {formulario?.tipo === 'desactivar' && <FormularioDesactivarLote lote={lote} onCerrar={cerrarForm} onDesactivado={desactivado} />}
             {formulario?.tipo === 'monitoreo' && <FormularioMonitoreo loteId={loteId} onCerrar={cerrarForm} onGuardado={guardadoForm} />}
         </>
     );

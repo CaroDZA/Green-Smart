@@ -67,7 +67,12 @@ const request = async (ruta, { method = 'GET', body, blob = false } = {}) => {
     // Si hubo error, usamos el mensaje que manda el backend
     if (!res.ok) {
         const datos = await res.json().catch(() => ({}));
-        throw new Error(datos.error || `Error ${res.status}`);
+        const error = new Error(datos.error || `Error ${res.status}`);
+        // Guarda el código (ej: 404) por si una pantalla lo necesita
+        error.status = res.status;
+        // true si el backend no tiene esa ruta (respondió sin mensaje propio)
+        error.rutaNoExiste = res.status === 404 && !datos.error;
+        throw error;
     }
 
     // Devuelve un archivo (PDF) o los datos

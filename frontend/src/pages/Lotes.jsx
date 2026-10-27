@@ -7,6 +7,7 @@ import { Cargando, ErrorCarga, Vacio } from '../components/Mensajes';
 import FormularioLote from '../components/formularios/FormularioLote';
 import { IconoLote, IconoMas } from '../components/Iconos';
 import TarjetaLote from '../components/TarjetaLote';
+import TarjetaLoteInactivo from '../components/TarjetaLoteInactivo';
 import DetalleLote from '../components/DetalleLote';
 import { useSesion } from '../context/SesionContexto';
 import { useCarga } from '../hooks/useCarga';
@@ -32,6 +33,10 @@ export default function Lotes() {
     const [registrando, setRegistrando] = useState(false);
     // Filtro de estado elegido
     const [filtro, setFiltro] = useState('');
+    // true = se muestran los lotes desactivados
+    const [verInactivos, setVerInactivos] = useState(false);
+    // Pide al backend los lotes inactivos solo cuando se van a ver
+    const inactivos = useCarga(() => (verInactivos ? lotesService.listar(true) : Promise.resolve([])), [verInactivos]);
 
     // Lote abierto en el detalle (según la dirección)
     const loteAbierto = params.get('lote');
@@ -145,6 +150,30 @@ export default function Lotes() {
                             ))}
                         </div>
                     )}
+
+                    {/* Botón para mostrar u ocultar los lotes desactivados (solo administrador) */}
+                    {puede.gestionarLotes && (
+                        <div style={{ marginTop: 24 }}>
+                            <button className="btn btn-ghost btn-auto" onClick={() => setVerInactivos((v) => !v)}>
+                                {verInactivos ? 'Ocultar lotes inactivos' : 'Ver lotes inactivos'}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Lotes desactivados (su historial se conserva) */}
+                    {verInactivos && (
+                        <div style={{ marginTop: 16 }}>
+                            {inactivos.cargando && !inactivos.datos && <div className="card"><Cargando texto="Cargando lotes inactivos…" /></div>}
+                            {inactivos.error && <div className="card"><ErrorCarga error={inactivos.error} onReintentar={inactivos.recargar} /></div>}
+                            {inactivos.datos && (inactivos.datos.length ? (
+                                <div className="lotes-grid">
+                                    {inactivos.datos.map((l) => <TarjetaLoteInactivo key={l.id} lote={l} />)}
+                                </div>
+                            ) : (
+                                <div className="card"><Vacio titulo="No hay lotes inactivos" /></div>
+                            ))}
+                        </div>
+                    )}
                 </>
             )}
 
@@ -160,7 +189,7 @@ export default function Lotes() {
             )}
 
             {/* Detalle del lote abierto */}
-            {loteAbierto && <DetalleLote key={loteAbierto} loteId={Number(loteAbierto)} onCerrar={cerrarLote} onCambio={recargar} />}
+            {loteAbierto && <DetalleLote key={loteAbierto} loteId={Number(loteAbierto)} onCerrar={cerrarLote} onCambio={() => { recargar(); inactivos.recargar(); }} />}
         </section>
     );
 }
