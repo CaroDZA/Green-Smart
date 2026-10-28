@@ -142,6 +142,14 @@ export const COLOR_ESTADO_CULTIVO = {
     CRITICO: 'var(--danger)',  // rojo
 };
 
+// ---------- VALIDACIONES DE CUENTA ----------
+
+// Mínimo de caracteres de una contraseña (igual que el backend)
+export const PASSWORD_MIN = 6;
+
+// Revisa que el correo tenga forma de correo: algo@algo.algo
+export const correoValido = (correo) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+
 // ---------- ACTIVIDAD VENCIDA (misma regla que las alertas del backend) ----------
 
 // Día de hoy en Colombia como "AAAA-MM-DD" (Colombia es UTC-5)

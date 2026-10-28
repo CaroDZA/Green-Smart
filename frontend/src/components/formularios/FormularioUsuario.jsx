@@ -7,7 +7,7 @@ import { useAvisos } from '../../context/AvisosContexto';
 import { useSesion } from '../../context/SesionContexto';
 // Llamadas al backend de usuarios
 import { authService } from '../../services/greensmart';
-import { ROLES } from '../../utils/formatos';
+import { correoValido, PASSWORD_MIN, ROLES } from '../../utils/formatos';
 import VentanaModal from '../VentanaModal';
 import { Campo, ErrorForm, Opciones, PieForm } from './CamposFormulario';
 
@@ -40,8 +40,12 @@ export default function FormularioUsuario({ usuario, onCerrar, onGuardado }) {
 
         // Nombre y correo siempre son obligatorios
         if (!datos.nombre.trim() || !datos.email.trim()) return setError('El nombre y el correo son obligatorios.');
+        // El correo debe tener forma de correo
+        if (!correoValido(datos.email.trim())) return setError('Escribe un correo válido, por ejemplo nombre@correo.com.');
         // Al registrar también se necesita la contraseña
         if (!usuario && !datos.password) return setError('La contraseña es obligatoria.');
+        // Si se escribió una contraseña, debe tener el mínimo de caracteres
+        if (datos.password && datos.password.length < PASSWORD_MIN) return setError(`La contraseña debe tener mínimo ${PASSWORD_MIN} caracteres.`);
         // Las contraseñas deben ser iguales
         if (datos.password !== datos.confirmar) return setError('Las contraseñas no coinciden.');
 

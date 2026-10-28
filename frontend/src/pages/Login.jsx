@@ -7,6 +7,8 @@ import { IconoLuna, IconoSol } from '../components/Iconos';
 import VentanaApariencia from '../components/VentanaApariencia';
 import { useSesion } from '../context/SesionContexto';
 import { useTema } from '../context/TemaContexto';
+// Validaciones de correo y contraseña
+import { correoValido, PASSWORD_MIN } from '../utils/formatos';
 
 // Campo de contraseña con botón de ojo para verla
 function CampoPassword({ value, onChange, autoComplete }) {
@@ -79,6 +81,9 @@ export default function Login() {
     const enviar = async (e) => {
         e.preventDefault();
         setError('');
+        // Revisa el formato antes de llamar al backend
+        if (!correoValido(datos.email.trim())) return setError('Escribe un correo válido, por ejemplo nombre@correo.com.');
+        if (datos.password.length < PASSWORD_MIN) return setError(`La contraseña debe tener mínimo ${PASSWORD_MIN} caracteres.`);
         setEnviando(true);
         try {
             // Si es correcto, la app pasa sola al dashboard
@@ -111,7 +116,8 @@ export default function Login() {
                 {recuperando ? (
                     <RestablecerPassword onVolver={() => setRecuperando(false)} />
                 ) : (
-                <form onSubmit={enviar}>
+                <form onSubmit={enviar} noValidate>
+                    {/* noValidate: los mensajes de error los muestra la app, no el navegador */}
                     <ErrorForm mensaje={error} />
                     <div className="form-group">
                         <label className="form-label">Correo electrónico</label>
@@ -133,12 +139,6 @@ export default function Login() {
                 </form>
                 )}
 
-                {/* Usuarios de prueba (solo se ve mientras programamos) */}
-                {import.meta.env.DEV && !recuperando && (
-                    <div className="login-foot">
-                        Demo (seed): <strong>admin@greensmart.com</strong>, <strong>coordinador@greensmart.com</strong> u <strong>operario@greensmart.com</strong> · contraseña 123456 (o la de SEED_PASSWORD)
-                    </div>
-                )}
             </div>
 
             {/* Ventana de apariencia */}
