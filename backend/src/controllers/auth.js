@@ -97,15 +97,23 @@ const login = async (req, res) => {
     }
 };
 
-// Listar usuarios (solo Admin)
+// Listar usuarios (solo Admin y coordinador)
 const listarUsuarios = async (req, res) => {
     try {
+        // Si es COORDINADOR, solo ve a los OPERARIOS. Si es ADMIN, ve a todos.
+        let filtro = {};
+        if (req.usuario.rol === 'COORDINADOR') {
+            filtro.rol = 'OPERARIO';
+        }
+
         const usuarios = await prisma.usuario.findMany({
+            where: filtro,
             select: {
                 id: true,
                 nombre: true,
                 email: true,
                 rol: true,
+                activo: true,
                 createdAt: true,
             },
             orderBy: { createdAt: 'desc' },
