@@ -3,7 +3,7 @@ const prisma = require('../utils/prisma');
 const { crearToken } = require('../utils/jwt');
 const { esIdValido } = require('../utils/validar');
 
-// Registrar un usuario nuevo
+// Registrar un usuario nuevo (Público)
 const registrar = async (req, res) => {
     try {
         const { nombre, email, password } = req.body;
@@ -18,7 +18,6 @@ const registrar = async (req, res) => {
             return res.status(409).json({ error: 'Ese email ya está registrado' });
         }
 
-        // Encriptamos la contraseña
         const salt = await bcrypt.genSalt(10);
         const passwordEncriptada = await bcrypt.hash(password, salt);
 
@@ -27,14 +26,9 @@ const registrar = async (req, res) => {
                 nombre,
                 email,
                 password: passwordEncriptada,
-                rol: 'OPERARIO',
+                rol: 'OPERARIO', // Siempre operario por seguridad
             },
-            select: {
-                id: true,
-                nombre: true,
-                email: true,
-                rol: true,
-            },
+            select: { id: true, nombre: true, email: true, rol: true },
         });
 
         const token = crearToken({
@@ -43,11 +37,7 @@ const registrar = async (req, res) => {
             rol: nuevoUsuario.rol,
         });
 
-        res.status(201).json({
-            mensaje: 'Usuario registrado',
-            usuario: nuevoUsuario,
-            token,
-        });
+        res.status(201).json({ mensaje: 'Usuario registrado', usuario: nuevoUsuario, token });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
@@ -70,7 +60,6 @@ const login = async (req, res) => {
         }
 
         const coincide = await bcrypt.compare(password, usuario.password);
-
         if (!coincide) {
             return res.status(401).json({ error: 'Email o contraseña incorrectos' });
         }
@@ -83,12 +72,7 @@ const login = async (req, res) => {
 
         res.json({
             mensaje: 'Login exitoso',
-            usuario: {
-                id: usuario.id,
-                nombre: usuario.nombre,
-                email: usuario.email,
-                rol: usuario.rol,
-            },
+            usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol },
             token,
         });
     } catch (error) {
@@ -97,52 +81,23 @@ const login = async (req, res) => {
     }
 };
 
-// Listar usuarios (solo Admin y coordinador)
-const listarUsuarios = async (req, res) => {
+// Recuperar contraseña (Público, usando correo)
+const recuperarPassword = async (req, res) => {
     try {
-        // Si es COORDINADOR, solo ve a los OPERARIOS. Si es ADMIN, ve a todos.
-        let filtro = {};
-        if (req.usuario.rol === 'COORDINADOR') {
-            filtro.rol = 'OPERARIO';
+        const { email, nuevaPassword } = req.body;
+
+        if (!email || !nuevaPassword) {
+            return res.status(400).json({ error: 'El email y la nueva contraseña son obligatorios' });
         }
-
-        const usuarios = await prisma.usuario.findMany({
-            where: filtro,
-            select: {
-                id: true,
-                nombre: true,
-                email: true,
-                rol: true,
-                activo: true,
-                createdAt: true,
-            },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        res.json({ total: usuarios.length, usuarios });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Error del servidor' });
-    }
-};
-
-// Restablecer la contraseña de un usuario (solo Admin)
-const restablecerPassword = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { nuevaPassword } = req.body;
-
-        if (!esIdValido(id)) {
-            return res.status(400).json({ error: 'El id no es valido' });
-        }
-
-        if (!nuevaPassword || typeof nuevaPassword !== 'string' || nuevaPassword.length < 6) {
+        if (nuevaPassword.length < 6) {
             return res.status(400).json({ error: 'La contraseña debe tener minimo 6 caracteres' });
         }
 
-        const usuario = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
+        const emailLimpio = email.trim().toLowerCase();
+        const usuario = await prisma.usuario.findUnique({ where: { email: emailLimpio } });
+
         if (!usuario) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
+            return res.status(404).json({ error: 'No existe un usuario registrado con ese correo' });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -153,74 +108,48 @@ const restablecerPassword = async (req, res) => {
             data: { password: hash },
         });
 
-        res.json({ mensaje: 'Contraseña de ' + usuario.nombre + ' actualizada exitosamente' });
+        res.json({ mensaje: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesion.' });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 };
 
-// Actualizar nombre y correo de un usuario (solo Admin)
-const actualizarUsuario = async (req, res) => {
+// Listar usuarios (Admin y Coordinador)
+const listarUsuarios = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { nombre, email } = req.body;
-
-        if (!esIdValido(id)) {
-            return res.status(400).json({ error: 'El id no es valido' });
+        let filtro = {};
+        if (req.usuario.rol === 'COORDINADOR') {
+            filtro.rol = 'OPERARIO';
         }
 
-        if (!nombre || !email) {
-            return res.status(400).json({ error: 'Faltan datos obligatorios' });
-        }
-
-        const usuario = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
-        if (!usuario) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
-
-        // El correo nuevo no puede tenerlo otro usuario
-        const repetido = await prisma.usuario.findUnique({ where: { email } });
-        if (repetido && repetido.id !== usuario.id) {
-            return res.status(409).json({ error: 'Ese email ya está registrado' });
-        }
-
-        const actualizado = await prisma.usuario.update({
-            where: { id: usuario.id },
-            data: { nombre, email },
-            select: { id: true, nombre: true, email: true, rol: true },
+        const usuarios = await prisma.usuario.findMany({
+            where: filtro,
+            select: { id: true, nombre: true, email: true, rol: true, activo: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
         });
 
-        res.json({ mensaje: 'Usuario actualizado', usuario: actualizado });
+        res.json({ total: usuarios.length, usuarios });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 };
 
-// Cambiar el rol de un usuario (solo Admin)
+// Cambiar el rol (Solo Admin)
 const cambiarRol = async (req, res) => {
     try {
         const { id } = req.params;
         const { rol } = req.body;
 
-        if (!esIdValido(id)) {
-            return res.status(400).json({ error: 'El id no es valido' });
-        }
+        if (!esIdValido(id)) return res.status(400).json({ error: 'El id no es valido' });
 
         const rolesValidos = ['ADMINISTRADOR', 'COORDINADOR', 'OPERARIO'];
-        if (!rolesValidos.includes(rol)) {
-            return res.status(400).json({ error: 'Rol no válido' });
-        }
-
-        if (parseInt(id) === req.usuario.id) {
-            return res.status(400).json({ error: 'No puedes cambiar tu propio rol' });
-        }
+        if (!rolesValidos.includes(rol)) return res.status(400).json({ error: 'Rol no válido' });
+        if (parseInt(id) === req.usuario.id) return res.status(400).json({ error: 'No puedes cambiar tu propio rol' });
 
         const existe = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
-        if (!existe) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
+        if (!existe) return res.status(404).json({ error: 'Usuario no encontrado' });
 
         const usuario = await prisma.usuario.update({
             where: { id: parseInt(id) },
@@ -235,24 +164,19 @@ const cambiarRol = async (req, res) => {
     }
 };
 
-// Actualizar nombre y correo de un usuario (Solo Admin)
+// Actualizar nombre y correo desde el panel Admin
 const actualizarDatosUsuario = async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, email } = req.body;
 
-        if (!esIdValido(id)) {
-            return res.status(400).json({ error: 'El id no es valido' });
-        }
+        if (!esIdValido(id)) return res.status(400).json({ error: 'El id no es valido' });
 
         const existe = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
-        if (!existe) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
+        if (!existe) return res.status(404).json({ error: 'Usuario no encontrado' });
 
         const emailLimpio = email ? email.trim().toLowerCase() : existe.email;
 
-        // Validar que el nuevo correo no esté en uso por otro
         if (emailLimpio !== existe.email) {
             const ocupado = await prisma.usuario.findUnique({ where: { email: emailLimpio } });
             if (ocupado) return res.status(409).json({ error: 'El correo ya esta en uso' });
@@ -260,10 +184,7 @@ const actualizarDatosUsuario = async (req, res) => {
 
         const usuario = await prisma.usuario.update({
             where: { id: parseInt(id) },
-            data: {
-                nombre: nombre || existe.nombre,
-                email: emailLimpio
-            },
+            data: { nombre: nombre || existe.nombre, email: emailLimpio },
             select: { id: true, nombre: true, email: true, rol: true }
         });
 
@@ -274,18 +195,14 @@ const actualizarDatosUsuario = async (req, res) => {
     }
 };
 
-// Cambiar contraseña desde el panel de Admin
+// Cambiar contraseña desde el panel Admin
 const cambiarPasswordAdmin = async (req, res) => {
     try {
         const { id } = req.params;
         const { nuevaPassword } = req.body;
 
-        if (!esIdValido(id)) {
-            return res.status(400).json({ error: 'El id no es valido' });
-        }
-        if (!nuevaPassword || nuevaPassword.length < 6) {
-            return res.status(400).json({ error: 'La contraseña debe tener minimo 6 caracteres' });
-        }
+        if (!esIdValido(id)) return res.status(400).json({ error: 'El id no es valido' });
+        if (!nuevaPassword || nuevaPassword.length < 6) return res.status(400).json({ error: 'La contraseña debe tener minimo 6 caracteres' });
 
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(nuevaPassword, salt);
@@ -301,12 +218,13 @@ const cambiarPasswordAdmin = async (req, res) => {
         res.status(500).json({ error: 'Error del servidor' });
     }
 };
+
 module.exports = {
     registrar,
     login,
+    recuperarPassword,
     listarUsuarios,
     cambiarRol,
-    restablecerPassword,
     actualizarDatosUsuario,
-    cambiarPasswordAdmin   
+    cambiarPasswordAdmin
 };
