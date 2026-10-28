@@ -33,5 +33,7 @@ router.get('/usuarios', verificarLogin, verificarRol('ADMINISTRADOR', 'COORDINAD
 router.put('/usuarios/:id', verificarLogin, verificarRol('ADMINISTRADOR'), actualizarUsuario);
 router.put('/usuarios/:id/rol', verificarLogin, verificarRol('ADMINISTRADOR'), cambiarRol);
 router.put('/usuarios/:id/password', verificarLogin, verificarRol('ADMINISTRADOR'), restablecerPassword);
+router.put('/usuarios/:id', verificarLogin, verificarRol('ADMINISTRADOR'), actualizarDatosUsuario);
+router.put('/usuarios/:id/password', verificarLogin, verificarRol('ADMINISTRADOR'), cambiarPasswordAdmin);
 
 module.exports = router;

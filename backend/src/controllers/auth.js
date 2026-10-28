@@ -235,4 +235,78 @@ const cambiarRol = async (req, res) => {
     }
 };
 
-module.exports = { registrar, login, listarUsuarios, cambiarRol, restablecerPassword, actualizarUsuario };
+// Actualizar nombre y correo de un usuario (Solo Admin)
+const actualizarDatosUsuario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre, email } = req.body;
+
+        if (!esIdValido(id)) {
+            return res.status(400).json({ error: 'El id no es valido' });
+        }
+
+        const existe = await prisma.usuario.findUnique({ where: { id: parseInt(id) } });
+        if (!existe) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        const emailLimpio = email ? email.trim().toLowerCase() : existe.email;
+
+        // Validar que el nuevo correo no esté en uso por otro
+        if (emailLimpio !== existe.email) {
+            const ocupado = await prisma.usuario.findUnique({ where: { email: emailLimpio } });
+            if (ocupado) return res.status(409).json({ error: 'El correo ya esta en uso' });
+        }
+
+        const usuario = await prisma.usuario.update({
+            where: { id: parseInt(id) },
+            data: {
+                nombre: nombre || existe.nombre,
+                email: emailLimpio
+            },
+            select: { id: true, nombre: true, email: true, rol: true }
+        });
+
+        res.json({ mensaje: 'Datos actualizados', usuario });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+};
+
+// Cambiar contraseña desde el panel de Admin
+const cambiarPasswordAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nuevaPassword } = req.body;
+
+        if (!esIdValido(id)) {
+            return res.status(400).json({ error: 'El id no es valido' });
+        }
+        if (!nuevaPassword || nuevaPassword.length < 6) {
+            return res.status(400).json({ error: 'La contraseña debe tener minimo 6 caracteres' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(nuevaPassword, salt);
+
+        await prisma.usuario.update({
+            where: { id: parseInt(id) },
+            data: { password: hash },
+        });
+
+        res.json({ mensaje: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+};
+module.exports = {
+    registrar,
+    login,
+    listarUsuarios,
+    cambiarRol,
+    restablecerPassword,
+    actualizarDatosUsuario,
+    cambiarPasswordAdmin   
+};
