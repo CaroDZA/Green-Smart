@@ -75,12 +75,12 @@ const listarPorLote = async (req, res) => {
     }
 
     try {
+
         const lote = await prisma.lote.findUnique({
-            where: { lote: { activo: true } },
             where: { id: parseInt(loteId) },
         });
 
-        if (!lote) {
+        if (!lote || !lote.activo) {
             return res.status(404).json({ error: 'Lote no encontrado' });
         }
 
